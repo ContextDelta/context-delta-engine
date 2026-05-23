@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Local editor and OS files
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+# Context Delta local runtime data
+.contextdelta/cache/
+.contextdelta/index/
+.contextdelta/local/
+.contextdelta/tmp/
+*.local.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
