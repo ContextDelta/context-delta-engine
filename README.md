@@ -1,16 +1,37 @@
 # Context Delta
 
-**Give your AI coding agent the right context, not the biggest context.**
+**The context packet layer for AI coding agents.**
 
-Context Delta is a local-first context layer for AI coding agents and
-spec-driven development. It helps tools like GitHub Copilot, VS Code,
-Claude Code, Cursor, and MCP-compatible agents work from a small, fresh,
-inspectable packet of context before they make changes.
+[![CI](https://github.com/ContextDelta/context-delta-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ContextDelta/context-delta-engine/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Local first](https://img.shields.io/badge/local--first-context%20packets-0f766e.svg)](#quick-start)
+[![Status](https://img.shields.io/badge/status-alpha%20preview-b45309.svg)](#current-status)
+
+[Website](https://contextdelta.github.io/context-delta-engine/) ·
+[CLI](docs/cli.md) ·
+[VS Code](docs/vscode-extension.md) ·
+[MCP](docs/mcp-client-setup.md) ·
+[Spec Kit](docs/spec-kit.md) ·
+[Blog](docs/blog.html)
+
+Context Delta is the context packet layer for AI coding agents: inspectable,
+replayable, local-first by default, measurable, and portable across tools. It
+helps GitHub Copilot, VS Code, Claude Code, Cursor, and MCP-compatible agents
+work from a small, fresh packet before they make changes, with Codex-friendly
+handoffs for local agent workflows.
+
+Today, the CLI and MCP server work locally. Agent automation depends on the
+host: MCP-capable agents can call `prepare_context`; VS Code/Copilot can use
+the MCP setup when Agent mode and tools are enabled; other hosts can use the
+prompt-ready handoff. The product direction is quiet by default: prepare
+context automatically, show a simple risk line, and ask for attention only
+when the packet looks risky.
 
 AI coding tools are powerful. The problem is that they often receive messy
 context: stale specs, long chat history, random open files, missing tests,
 old instructions, and hidden prompt assembly. Context Delta finds what
-changed, finds what matters, removes the noise, and shows what will be sent.
+changed, finds what matters, removes the noise, and shows what you can choose
+to send.
 
 ```text
 Your prompt
@@ -41,6 +62,19 @@ Before the AI acts, it builds a focused packet:
 - what was excluded and why
 - how many tokens were likely saved
 
+![Context Delta before and after context savings](docs/site/assets/context-savings-preview.svg)
+
+## What You Get
+
+| Surface | What it does |
+| --- | --- |
+| CLI | Prepares agent-ready handoffs, packets, drift reviews, reports, diffs, summaries, and metrics from the terminal. |
+| VS Code | Defaults to prepare-and-copy for Codex, Claude, and Copilot, with setup checks and advanced packet review available when needed. |
+| MCP server | Lets compatible agents call one primary tool, `prepare_context`, before they work. |
+| Metrics | Emits aggregate token savings, risk, budget, freshness, and redaction signals without raw code by default. |
+| Eval | Scores packets against labeled gold sets so correctness claims are earned. |
+| Spec workflow | Connects specs, tasks, tests, code, and instructions into one visible working set. |
+
 ## The Product Promise
 
 Keep using your existing workflow.
@@ -58,22 +92,56 @@ You should not need to switch IDEs, rewrite your process, or manually paste
 giant context blocks. The default experience should be quiet and fast. The
 details should be visible when you want to inspect them.
 
+## How It Helps In Normal Agent Work
+
+You still ask Codex, Claude Code, or GitHub Copilot for the change. Context
+Delta helps in the step before the agent edits:
+
+1. The agent calls `prepare_context`, or VS Code runs prepare-and-copy.
+2. Context Delta builds a focused handoff from git changes, specs, tests,
+   instructions, and policy exclusions.
+3. The agent works from that handoff instead of guessing from open tabs or a
+   hidden prompt.
+4. After the agent edits, `drift` shows whether files changed outside the
+   packet so you know when to rebuild or inspect.
+
+The packet is the audit trail. It is there when risk is high, but it is not
+the default workflow.
+
+## What Works Today
+
+| Path | Current state |
+| --- | --- |
+| CLI handoff | Works locally with `npm run prepare -- "task"` and `npm run drift`. |
+| MCP agent path | Works when the host exposes MCP tools and the `context-delta` server is enabled. |
+| GitHub Copilot in VS Code | Works through Copilot Agent mode when VS Code MCP tools are enabled; otherwise use prepare-and-copy. |
+| VS Code extension | Alpha preview. It can prepare/copy handoffs, show packets, and review drift, but it is not marketplace-packaged yet. |
+| Automatic interception | Host-dependent. Context Delta cannot intercept a closed agent chat unless that host calls MCP/tools or exposes hooks. |
+
 ## What A Developer Sees
 
-```text
-Context Packet Ready
+Run:
 
-Task readiness: Good
-Changed files: 3
-Related tests: 2
-Relevant specs: 1
-Rules/instructions: 2
-Excluded noisy files: 18
-Estimated context reduction: 64%
+```bash
+npm run prepare -- "Add refresh token rotation for admin users"
 ```
 
-Clicking into the packet shows:
+Output:
 
+```text
+Context ready · risk=low · budget=low · warnings=0 · tests=2 · specs=1
+Packet is ready for spec-driven AI coding.
+```
+
+The handoff below the header is prompt-ready. In MCP-capable agents, the agent
+should call `prepare_context` first and use the returned handoff directly. In
+VS Code, the dashboard keeps advanced review available without making it the
+default workflow.
+
+Inspecting the packet shows:
+
+- packet insight and risk level
+- recommended next steps
 - included files and snippets
 - reasons for inclusion
 - excluded files and reasons
@@ -81,6 +149,137 @@ Clicking into the packet shows:
 - estimated token cost
 - freshness warnings
 - pin, exclude, expand, and compact controls
+
+## Quick Start
+
+Install dependencies if needed:
+
+```bash
+npm install
+```
+
+Check the workspace:
+
+```bash
+npm run doctor
+```
+
+Check the path you want to use:
+
+```bash
+npm run setup -- --target cli
+npm run setup -- --target mcp
+npm run setup -- --target vscode
+```
+
+For MCP-capable agents, copy the host config and let the agent call
+`prepare_context` before it edits:
+
+```bash
+npm run doctor -- --mcp
+```
+
+For manual handoff, prepare context for your current agent:
+
+```bash
+npm run prepare -- "Add refresh token rotation for admin users"
+```
+
+After an agent edits files, check whether it drifted outside the packet:
+
+```bash
+npm run drift
+```
+
+Build the raw packet only when you want to inspect the audit trail directly:
+
+```bash
+npm run packet -- "Add refresh token rotation for admin users"
+```
+
+Generate a local HTML report:
+
+```bash
+npm run packet -- "Add refresh token rotation for admin users" --report
+```
+
+Review the latest packet without source snippets:
+
+```bash
+npm run context-delta -- compact
+```
+
+See packet readiness and recommendations:
+
+```bash
+npm run context-delta -- insights
+```
+
+Run the alpha release check:
+
+```bash
+npm run release:check
+```
+
+Copy a prompt-ready handoff for Copilot or another agent:
+
+```bash
+npm run handoff -- --format copilot
+```
+
+Score packet quality against the multi-shape labeled gold set:
+
+```bash
+npm run eval:multi
+```
+
+On the bundled gold set (auth change, static-site review, and node-service
+fix), the current engine measures:
+
+| Metric | Result |
+| --- | --- |
+| Cases passed | 3 / 3 (100%) |
+| Useful-context density | 96% average |
+| Impact coverage | 100% average |
+| Omission rate | 0% average |
+| Whole-workspace context reduction | 68% average |
+
+These are the only quality numbers Context Delta claims, and they are
+reproducible from a clean checkout with the command above. Token reduction is
+an estimated cost signal; the pass rate, coverage, and density are the
+measured quality signal.
+
+Record a local review decision and create a replay prompt:
+
+```bash
+npm run approve
+npm run replay
+```
+
+For a no-risk demo workspace:
+
+```bash
+npm run packet -- "Add admin refresh token rotation" --workspace examples/demo-workspace --dry-run
+npm run handoff -- --workspace examples/demo-workspace --format copilot
+```
+
+Compare the latest packet with the previous one:
+
+```bash
+npm run diff
+```
+
+Write a manager-friendly repo summary:
+
+```bash
+npm run summary
+```
+
+Create a config file:
+
+```bash
+npm run init
+```
 
 ## Example
 
@@ -90,10 +289,10 @@ You ask:
 Add refresh token rotation for admin users.
 ```
 
-Without Context Delta, the agent may see:
+Without Context Delta, a naive agent would likely pull:
 
 ```text
-28,000 tokens
+~2,667 tokens (estimated baseline)
 old auth specs, unrelated open files, long chat history, random docs,
 and no focused explanation of what changed
 ```
@@ -101,16 +300,33 @@ and no focused explanation of what changed
 With Context Delta, the agent receives:
 
 ```text
-7,800 tokens
+~1,262 tokens delivered
 changed auth service, affected token store, relevant spec requirement,
 security instruction, nearest tests, and excluded stale docs
 
-Estimated context saved: 72%
+Estimated context reduction: 53% · useful-context density: 96%
+```
+
+These are real, byte-based estimates from the bundled demo workspace, not
+illustrative figures. Reproduce them with:
+
+```bash
+npm run packet -- "Add refresh token rotation for admin users" \
+  --workspace examples/demo-workspace --json
 ```
 
 The goal is not smaller context for its own sake. The goal is better context:
 fresh enough to be reliable, rich enough to be correct, and visible enough
-to trust.
+to trust. Token reduction is a cost signal; the packet-quality eval below is
+the quality signal.
+
+## Product Preview
+
+![Context Delta VS Code dashboard preview](docs/site/assets/vscode-dashboard-preview.svg)
+
+The VS Code extension is designed to keep context review in the editor:
+packet status, included files, reasons, warnings, diffs, summaries, reports,
+and handoff actions all point back to the same local engine.
 
 ## For Spec-Driven Development
 
@@ -144,18 +360,26 @@ Context Delta is designed to emit privacy-safe metrics such as:
 - stale spec warnings
 - repeated context lookups avoided
 
-At team scale, those metrics can become repo and org summaries:
+At team scale, those metrics can become repo and org summaries. The block
+below is an illustration of the report *format* with placeholder numbers, not
+measured results from any deployment:
 
 ```text
-This month:
-- 42M estimated input tokens saved
-- 61% average context reduction
-- 84% packets accepted without edits
-- 19 stale spec warnings
-- 31 repeated-context lookups avoided
+This month (illustrative format, not real data):
+- estimated input tokens saved
+- average context reduction
+- packets accepted without edits
+- stale spec warnings
+- repeated-context lookups avoided
 ```
 
+Acceptance and adoption numbers depend on real usage, so Context Delta does
+not ship invented totals. The only numbers it claims today are the
+reproducible eval results below.
+
 Raw source code and prompt text should not be included in metrics by default.
+
+![Context Delta metrics rollup preview](docs/site/assets/metrics-rollup-preview.svg)
 
 ## How It Works
 
@@ -183,49 +407,63 @@ Context Delta has five layers:
 
 ## Current Status
 
-Context Delta is an early open-source project in the planning and prototype
-phase.
+Context Delta is an early open-source alpha with a working local prototype.
 
-Initial focus:
+Implemented in this repo:
 
-- clear product story
-- local-first design
-- VS Code viewer
-- MCP server
-- spec-driven development support
-- GitHub Copilot workflows
-- privacy-safe metrics
+- local workspace scanner
+- git status detection when git is available
+- local snapshot diffing when git is not available
+- markdown/spec/instruction parsing
+- first context packet builder
+- token and context reduction estimates
+- local packet and metrics output under `.contextdelta/`
+- heuristic useful-context density and honest workspace upper-bound token baselines
+- packet-quality eval harness with labeled gold-set scoring
+- AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
+- source graph neighbor detection for changed files
+- packet insights, risk level, recommendations, and compact previews
+- packet approval and replay artifacts
+- packet history and previous/current packet diffs
+- prompt-ready handoff formats for Copilot, Spec Kit, Markdown, replay, compact JSON, and full JSON
+- CLI commands for setup, prepare, packet, scan, snapshot, metrics, report, insights, compact, history, diff, drift, handoff, summary, eval, approve, replay, init, and doctor
+- config file support with pin/exclude controls
+- policy exclusions and secret redaction
+- local HTML report and manager summary generation
+- MCP stdio server with packet, compact, insight, diff, handoff, summary, report, scan, and metrics tools
+- VS Code extension with activity bar dashboard, packet item actions, handoff copy, diff, summary, report, insight, and metrics webviews
+- demo workspace for quick manual testing
+- GitHub Pages landing page under `docs/index.html`
+- CI workflow for tests and syntax checks
+- tests for scanner, packet building, instruction precedence, graph neighbors, git/no-git deltas, history/diff, handoff, eval, approval/replay, metrics summary, MCP, and CLI output
 
 ## Roadmap
 
 Near term:
 
-- local workspace scanner
-- local snapshot diffing
-- git diff support
-- markdown/spec parser
-- instruction detector
-- basic context packet builder
-- packet viewer design
-- MCP tool design
+- publish and expand the packet-quality gold set
+- improve semantic ranking quality
+- add richer diff hunks and source snippets
+- harden VS Code extension packaging
+- validate MCP server compatibility with more real hosts
+- add packet approval flow in the editor
+- expand the redaction test corpus
+- add more language-aware symbol extraction
 
 Next:
 
-- VS Code extension
-- token estimator
-- packet history and replay
-- pin, exclude, expand, and compact controls
-- Spec Kit folder detection
-- spec/plan/tasks parsing
-- GitHub Copilot workflow examples
+- tree-sitter or LSP-backed symbol graph
+- richer token estimation by model family
+- packet replay and trend views
+- deeper Spec Kit folder detection
+- richer spec/plan/tasks parsing
+- GitHub Action packet reports
 
 Later:
 
 - repo metrics export
-- GitHub Action reports
 - team dashboard
 - policy controls
-- redaction
 - multi-repo impact analysis
 - enterprise deployment options
 
@@ -238,9 +476,23 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [Spec-driven development](docs/spec-driven-development.md)
 - [Spec Kit workflows](docs/spec-kit.md)
 - [GitHub Copilot workflows](docs/github-copilot.md)
+- [CLI](docs/cli.md)
+- [Configuration](docs/configuration.md)
+- [Insights and previews](docs/insights-and-previews.md)
+- [Observability](docs/observability.md)
+- [Testing](docs/testing.md)
+- [Packet-quality eval](docs/eval.md)
+- [VS Code extension](docs/vscode-extension.md)
 - [MCP integration](docs/mcp.md)
+- [MCP client setup](docs/mcp-client-setup.md)
 - [User experience](docs/user-experience.md)
 - [Metrics](docs/metrics.md)
+- [Launch checklist](docs/launch-checklist.md)
+- [Release readiness](docs/release.md)
+- [Demo script](docs/demo-script.md)
+- [Known limitations](docs/known-limitations.md)
+- [GitHub Pages landing page](docs/site/README.md)
+- [VS Code experience handoff](docs/vscode-experience-handoff.md)
 - [Scaling](docs/scaling.md)
 - [Go to market](docs/go-to-market.md)
 - [Architecture](docs/architecture.md)
