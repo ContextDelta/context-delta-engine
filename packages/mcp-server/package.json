@@ -1,0 +1,15 @@
+{
+  "name": "@contextdelta/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP stdio server for Context Delta context packet tools and resources.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ContextDelta/context-delta-engine.git",
+    "directory": "packages/mcp-server"
+  },
+  "bin": {
+    "context-delta-mcp": "./bin/context-delta-mcp.js"
+  }
+}

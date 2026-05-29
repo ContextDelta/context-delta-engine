@@ -1,0 +1,15 @@
+{
+  "name": "@contextdelta/shared",
+  "version": "0.1.0",
+  "description": "Shared schema and utility helpers for Context Delta packages.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ContextDelta/context-delta-engine.git",
+    "directory": "packages/shared"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

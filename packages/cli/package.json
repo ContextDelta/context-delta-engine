@@ -1,0 +1,15 @@
+{
+  "name": "@contextdelta/cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for Context Delta local context packets.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ContextDelta/context-delta-engine.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "context-delta": "./bin/context-delta.js"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@contextdelta/engine",
+  "version": "0.1.0",
+  "description": "Local context packet engine for AI coding agents and spec-driven development.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ContextDelta/context-delta-engine.git",
+    "directory": "packages/engine"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  }
+}
