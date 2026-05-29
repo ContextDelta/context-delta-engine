@@ -1,0 +1,44 @@
+{
+  "schema_version": "0.1",
+  "mode": "balanced",
+  "controls": {
+    "pin": [
+      "docs/spec-driven-development.md"
+    ],
+    "exclude": [
+      "docs/legacy/",
+      "*.local.md"
+    ]
+  },
+  "limits": {
+    "changed": 12,
+    "excluded": 20,
+    "impacted": 12,
+    "instructions": 8,
+    "markdownSections": 10,
+    "snippetChars": 10000,
+    "targetTokens": 12000,
+    "tests": 8
+  },
+  "policy": {
+    "excludePaths": [
+      ".env",
+      ".env.*",
+      "*.pem",
+      "*.key",
+      "secrets/"
+    ],
+    "redactSecrets": true,
+    "redactionPatterns": [
+      {
+        "name": "company_ticket",
+        "pattern": "TICKET-[0-9]+"
+      }
+    ]
+  },
+  "reports": {
+    "emitEvents": true,
+    "emitMetrics": true,
+    "emitPacketText": true
+  }
+}

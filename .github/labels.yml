@@ -1,0 +1,30 @@
+- name: bug
+  color: d73a4a
+  description: Something is not working as expected.
+- name: enhancement
+  color: a2eeef
+  description: A feature or product improvement.
+- name: workflow
+  color: 7057ff
+  description: Real-world context workflow examples and research.
+- name: docs
+  color: 0075ca
+  description: Documentation, examples, or public positioning.
+- name: mcp
+  color: 5319e7
+  description: MCP server, tools, resources, or client integration.
+- name: vscode
+  color: 0e8a16
+  description: VS Code extension experience or packaging.
+- name: metrics
+  color: fbca04
+  description: Token savings, reporting, observability, and summaries.
+- name: spec-driven
+  color: 1d76db
+  description: Spec Kit or spec-driven development workflows.
+- name: security
+  color: b60205
+  description: Redaction, privacy, sensitive data, or policy controls.
+- name: good first issue
+  color: 7057ff
+  description: A focused starter task for new contributors.

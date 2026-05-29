@@ -27,8 +27,41 @@ Context Delta is early. Contributions are welcome, especially around:
 - Do not include secrets, private code, or customer data.
 - Make examples understandable without deep architecture knowledge.
 
+## Local Validation
+
+Run the standard check:
+
+```bash
+npm run check
+```
+
+Run the fuller alpha release check:
+
+```bash
+npm run release:check
+```
+
+This validates package metadata, docs, extension manifest coverage, syntax,
+tests, workspace doctor, and demo smoke behavior.
+
+## VS Code Extension Development
+
+Use the launch configuration:
+
+```text
+Run Context Delta Extension
+```
+
+For staging a marketplace-style extension folder:
+
+```bash
+npm run vscode:stage
+```
+
+The staged output is written to `dist/vscode-extension/`.
+
 ## Development Status
 
-The project is currently in planning and prototype preparation. Expect docs
-and architecture to evolve before the first implementation stabilizes.
-
+The project is currently an alpha-quality local prototype. Core CLI, engine,
+MCP, VS Code, metrics, handoff, and report surfaces exist, but real-world
+agent validation and release packaging still need maintainer review.

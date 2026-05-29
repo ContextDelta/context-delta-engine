@@ -11,14 +11,21 @@ coverage/
 
 # Local editor and OS files
 .DS_Store
+.fuse_hidden*
+**/.fuse_hidden*
 .vscode/*
 !.vscode/extensions.json
+!.vscode/launch.json
 !.vscode/settings.example.json
 
 # Context Delta local runtime data
+.contextdelta/
+**/.contextdelta/
 .contextdelta/cache/
 .contextdelta/index/
 .contextdelta/local/
+.contextdelta/packets/
+.contextdelta/reports/
 .contextdelta/tmp/
 *.local.json
 
@@ -33,4 +40,3 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
-

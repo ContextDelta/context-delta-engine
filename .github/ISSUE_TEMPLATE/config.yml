@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/ContextDelta/context-delta-engine/security/advisories/new
+    about: Please report security issues privately instead of opening a public issue.
+  - name: Workflow example
+    url: https://github.com/ContextDelta/context-delta-engine/issues/new?template=context_workflow.md
+    about: Share a context workflow, agent setup, or spec-driven development example.

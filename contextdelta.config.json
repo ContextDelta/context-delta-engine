@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.1",
+  "mode": "balanced",
+  "controls": {
+    "exclude": [
+      ".github/",
+      "examples/",
+      "tests/engine.test.js",
+      "SECURITY.md",
+      "docs/go-to-market.md",
+      "docs/positioning.md",
+      "docs/research-notes.md",
+      "docs/scaling.md",
+      "docs/vision.md"
+    ],
+    "pin": [
+      "docs/index.html",
+      "docs/site/styles.css",
+      "docs/site/site.js",
+      "docs/docs.html",
+      "docs/blog.html",
+      "docs/metrics.html",
+      "docs/vscode-extension.html",
+      "docs/mcp-client-setup.html",
+      "docs/eval.html"
+    ]
+  },
+  "limits": {
+    "changed": 5,
+    "excluded": 20,
+    "impacted": 12,
+    "instructions": 8,
+    "markdownSections": 3,
+    "snippetChars": 2600,
+    "targetTokens": 12000,
+    "tests": 8
+  },
+  "policy": {
+    "excludePaths": [
+      ".env",
+      ".env.*",
+      "*.pem",
+      "*.key",
+      "*.p12",
+      "*.pfx",
+      "secrets/",
+      ".contextdelta/cache/",
+      ".contextdelta/index/",
+      ".contextdelta/local/",
+      ".contextdelta/packets/"
+    ],
+    "redactSecrets": true,
+    "redactionPatterns": [
+      {
+        "name": "openai_api_key",
+        "pattern": "sk-[A-Za-z0-9_-]{20,}"
+      },
+      {
+        "name": "generic_assignment_secret",
+        "pattern": "(api[_-]?key|secret|password)\\s*[:=]\\s*[^\\s'\\\"]+"
+      },
+      {
+        "name": "private_key_block",
+        "pattern": "-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z ]*PRIVATE KEY-----"
+      }
+    ]
+  },
+  "reports": {
+    "emitEvents": true,
+    "emitMetrics": true,
+    "emitPacketText": true
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "name": "context-delta-engine",
+  "version": "0.1.0",
+  "description": "Local-first context packets for AI coding agents and spec-driven development.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "context",
+    "github-copilot",
+    "mcp",
+    "spec-driven-development",
+    "spec-kit",
+    "vscode"
+  ],
+  "homepage": "https://contextdelta.github.io/context-delta-engine/",
+  "bugs": {
+    "url": "https://github.com/ContextDelta/context-delta-engine/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ContextDelta/context-delta-engine.git"
+  },
+  "files": [
+    "packages",
+    "docs",
+    "examples",
+    "scripts",
+    "contextdelta.config.example.json",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "bin": {
+    "context-delta": "./packages/cli/bin/context-delta.js",
+    "context-delta-mcp": "./packages/mcp-server/bin/context-delta-mcp.js"
+  },
+  "scripts": {
+    "context-delta": "node ./packages/cli/bin/context-delta.js",
+    "prepare": "node ./packages/cli/bin/context-delta.js prepare",
+    "setup": "node ./packages/cli/bin/context-delta.js setup",
+    "packet": "node ./packages/cli/bin/context-delta.js packet",
+    "snapshot": "node ./packages/cli/bin/context-delta.js snapshot",
+    "doctor": "node ./packages/cli/bin/context-delta.js doctor",
+    "init": "node ./packages/cli/bin/context-delta.js init",
+    "metrics": "node ./packages/cli/bin/context-delta.js metrics",
+    "report": "node ./packages/cli/bin/context-delta.js report",
+    "insights": "node ./packages/cli/bin/context-delta.js insights",
+    "compact": "node ./packages/cli/bin/context-delta.js compact",
+    "controls": "node ./packages/cli/bin/context-delta.js controls",
+    "history": "node ./packages/cli/bin/context-delta.js history",
+    "diff": "node ./packages/cli/bin/context-delta.js diff",
+    "drift": "node ./packages/cli/bin/context-delta.js drift",
+    "handoff": "node ./packages/cli/bin/context-delta.js handoff",
+    "inject": "node ./packages/cli/bin/context-delta.js inject",
+    "watch": "node ./packages/cli/bin/context-delta.js watch",
+    "summary": "node ./packages/cli/bin/context-delta.js summary",
+    "eval": "node ./packages/cli/bin/context-delta.js eval",
+    "eval:multi": "node ./packages/cli/bin/context-delta.js eval --workspace examples/eval --cases multi-shape-gold-set.json --dry-run --fail-on-failure",
+    "approve": "node ./packages/cli/bin/context-delta.js approve",
+    "replay": "node ./packages/cli/bin/context-delta.js replay",
+    "mcp": "node ./packages/mcp-server/bin/context-delta-mcp.js",
+    "site": "node ./scripts/serve-site.js --port 3001",
+    "test": "node --test tests/*.test.js",
+    "syntax": "node --check packages/cli/bin/context-delta.js && node --check packages/mcp-server/bin/context-delta-mcp.js && node --check packages/vscode-extension/extension.js && node --check packages/engine/src/history.js && node --check packages/engine/src/handoff.js && node --check packages/engine/src/intent.js && node --check packages/engine/src/metrics.js && node --check packages/engine/src/git.js && node --check packages/engine/src/eval.js && node --check packages/engine/src/instructions.js && node --check packages/engine/src/source-graph.js && node --check packages/engine/src/ranking.js && node --check packages/engine/src/file-kinds.js && node --check packages/engine/src/setup.js && node --check packages/engine/src/drift.js && node --check packages/engine/src/controls.js && node --check packages/engine/src/inject.js && node --check packages/engine/src/spec-kit.js && node --check tests/engine.test.js",
+    "smoke": "node scripts/smoke-demo.js",
+    "validate:release": "node scripts/validate-release.js",
+    "vscode:stage": "node scripts/stage-vscode-extension.js",
+    "check": "npm test && npm run syntax && node ./packages/cli/bin/context-delta.js doctor --workspace .",
+    "release:check": "npm run validate:release && npm run eval:multi && npm run check && npm run smoke"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
