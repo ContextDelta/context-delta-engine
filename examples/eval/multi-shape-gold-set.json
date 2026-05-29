@@ -1,0 +1,91 @@
+{
+  "name": "Context Delta multi-shape gold set",
+  "version": "0.1",
+  "description": "Small eval suite that checks packet quality across auth code, static site, and service/test repo shapes.",
+  "cases": [
+    {
+      "id": "auth-refresh-rotation-demo",
+      "workspace": "../demo-workspace",
+      "task": "Add refresh token rotation for admin users",
+      "minimum_context": {
+        "paths": [
+          "specs/004-admin-auth/spec.md",
+          "tests/auth/admin-refresh.test.ts",
+          "src/auth/service.ts",
+          "src/auth/token-store.ts",
+          ".github/copilot-instructions.md"
+        ],
+        "acceptable_paths": [
+          "specs/004-admin-auth/tasks.md",
+          "AGENTS.md",
+          "CLAUDE.md"
+        ]
+      },
+      "forbidden_paths": [
+        "docs/legacy-oauth.md"
+      ],
+      "pass": {
+        "min_impact_coverage": 0.8,
+        "min_useful_context_density": 0.45,
+        "max_omission_rate": 0.2,
+        "max_forbidden": 0
+      }
+    },
+    {
+      "id": "static-site-responsive-review",
+      "workspace": "static-site-workspace",
+      "task": "Review the static site visual polish changes for responsive layout issues",
+      "exclude": [
+        "docs/archive/"
+      ],
+      "minimum_context": {
+        "paths": [
+          "docs/index.html",
+          "docs/site/styles.css",
+          "docs/site/site.js"
+        ],
+        "acceptable_paths": [
+          "docs/site/README.md",
+          "docs/site/assets/packet-preview.svg"
+        ]
+      },
+      "forbidden_paths": [
+        "docs/archive/old-launch-notes.md"
+      ],
+      "pass": {
+        "min_impact_coverage": 1,
+        "min_useful_context_density": 0.35,
+        "max_omission_rate": 0,
+        "max_forbidden": 0
+      }
+    },
+    {
+      "id": "node-service-validation",
+      "workspace": "node-service-workspace",
+      "task": "Fix order validation so negative totals are rejected and add behavior coverage",
+      "exclude": [
+        "docs/archive/"
+      ],
+      "minimum_context": {
+        "paths": [
+          "src/orders/service.js",
+          "src/orders/validator.js",
+          "tests/orders/service.test.js",
+          "docs/orders.md"
+        ],
+        "acceptable_paths": [
+          "AGENTS.md"
+        ]
+      },
+      "forbidden_paths": [
+        "docs/archive/legacy-orders.md"
+      ],
+      "pass": {
+        "min_impact_coverage": 1,
+        "min_useful_context_density": 0.4,
+        "max_omission_rate": 0,
+        "max_forbidden": 0
+      }
+    }
+  ]
+}

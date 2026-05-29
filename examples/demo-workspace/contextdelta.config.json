@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.1",
+  "mode": "balanced",
+  "controls": {
+    "pin": [
+      ".github/copilot-instructions.md"
+    ],
+    "exclude": [
+      "docs/legacy/"
+    ]
+  },
+  "policy": {
+    "redactSecrets": true,
+    "excludePaths": [
+      ".env",
+      "*.pem",
+      "secrets/"
+    ]
+  }
+}
+

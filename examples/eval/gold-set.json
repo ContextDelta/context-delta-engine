@@ -1,0 +1,58 @@
+{
+  "name": "Context Delta demo gold set",
+  "version": "0.1",
+  "description": "Small labeled packet-quality suite for the bundled auth demo workspace.",
+  "cases": [
+    {
+      "id": "auth-refresh-rotation",
+      "task": "Add refresh token rotation for admin users",
+      "minimum_context": {
+        "paths": [
+          "specs/004-admin-auth/spec.md",
+          "tests/auth/admin-refresh.test.ts",
+          "src/auth/service.ts",
+          "src/auth/token-store.ts",
+          ".github/copilot-instructions.md"
+        ],
+        "acceptable_paths": [
+          "specs/004-admin-auth/tasks.md",
+          "AGENTS.md",
+          "CLAUDE.md"
+        ]
+      },
+      "forbidden_paths": [
+        "docs/legacy-oauth.md"
+      ],
+      "pass": {
+        "min_impact_coverage": 0.8,
+        "min_useful_context_density": 0.45,
+        "max_omission_rate": 0.2,
+        "max_forbidden": 0
+      }
+    },
+    {
+      "id": "security-instruction-review",
+      "task": "Review auth secret handling and make sure token changes avoid logging secrets",
+      "minimum_context": {
+        "paths": [
+          ".github/copilot-instructions.md",
+          "src/auth/service.ts",
+          "src/auth/token-store.ts",
+          "tests/auth/admin-refresh.test.ts"
+        ],
+        "acceptable_paths": [
+          "specs/004-admin-auth/spec.md",
+          "AGENTS.md",
+          "CLAUDE.md"
+        ]
+      },
+      "forbidden_paths": [],
+      "pass": {
+        "min_impact_coverage": 0.75,
+        "min_useful_context_density": 0.4,
+        "max_omission_rate": 0.25,
+        "max_forbidden": 0
+      }
+    }
+  ]
+}

@@ -17,8 +17,12 @@ Related tests: 2
 Relevant specs: 1
 Rules/instructions: 1
 Excluded noisy files: 6
-Estimated context reduction: 72%
+Estimated context reduction: 53%
 ```
+
+For this exact task, the bundled demo workspace measures ~53% context
+reduction at 96% useful-context density (reproduce with
+`npm run packet -- "Add refresh token rotation for admin users" --workspace examples/demo-workspace --json`).
 
 ## Packet JSON
 
