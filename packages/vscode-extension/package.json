@@ -1,0 +1,216 @@
+{
+  "name": "context-delta-vscode",
+  "displayName": "Context Delta",
+  "description": "Local-first context packets for AI coding agents and spec-driven development.",
+  "version": "0.1.0",
+  "publisher": "contextdelta",
+  "license": "Apache-2.0",
+  "preview": true,
+  "type": "commonjs",
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "context",
+    "github-copilot",
+    "mcp",
+    "spec-driven-development",
+    "spec-kit"
+  ],
+  "homepage": "https://contextdelta.github.io/context-delta-engine/",
+  "bugs": {
+    "url": "https://github.com/ContextDelta/context-delta-engine/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ContextDelta/context-delta-engine.git"
+  },
+  "galleryBanner": {
+    "color": "#0f766e",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:contextDelta.dashboard",
+    "onCommand:contextDelta.createPacket",
+    "onCommand:contextDelta.showLatestPacket",
+    "onCommand:contextDelta.writeSnapshot",
+    "onCommand:contextDelta.showMetrics",
+    "onCommand:contextDelta.writeConfig",
+    "onCommand:contextDelta.generateReport",
+    "onCommand:contextDelta.showInsights",
+    "onCommand:contextDelta.showPacketDiff",
+    "onCommand:contextDelta.generateManagerSummary",
+    "onCommand:contextDelta.showSetup",
+    "onCommand:contextDelta.fixSetup",
+    "onCommand:contextDelta.showDrift",
+    "onCommand:contextDelta.chooseAgent",
+    "onCommand:contextDelta.prepareCurrentChanges",
+    "onCommand:contextDelta.copyLatestPacket",
+    "onCommand:contextDelta.copyCompactPacket",
+    "onCommand:contextDelta.copyAgentHandoff",
+    "onCommand:contextDelta.copyForCodex",
+    "onCommand:contextDelta.copyForClaude",
+    "onCommand:contextDelta.copyForCopilot",
+    "onCommand:contextDelta.copyReplayPrompt",
+    "onCommand:contextDelta.approveLatestPacket",
+    "onCommand:contextDelta.includePath",
+    "onCommand:contextDelta.excludePath",
+    "onCommand:contextDelta.tuneControls",
+    "onCommand:contextDelta.cleanupControls",
+    "onCommand:contextDelta.clearControls",
+    "onCommand:contextDelta.refreshDashboard"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "contextDelta",
+          "title": "Context Delta",
+          "icon": "resources/context-delta.svg"
+        }
+      ]
+    },
+    "views": {
+      "contextDelta": [
+        {
+          "id": "contextDelta.dashboard",
+          "name": "Dashboard",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "contextDelta.createPacket",
+        "title": "Context Delta: Create Context Packet"
+      },
+      {
+        "command": "contextDelta.showLatestPacket",
+        "title": "Context Delta: Show Latest Packet"
+      },
+      {
+        "command": "contextDelta.writeSnapshot",
+        "title": "Context Delta: Write Local Snapshot"
+      },
+      {
+        "command": "contextDelta.showMetrics",
+        "title": "Context Delta: Show Metrics Summary"
+      },
+      {
+        "command": "contextDelta.writeConfig",
+        "title": "Context Delta: Open Config File"
+      },
+      {
+        "command": "contextDelta.generateReport",
+        "title": "Context Delta: Generate HTML Report"
+      },
+      {
+        "command": "contextDelta.showInsights",
+        "title": "Context Delta: Show Packet Insights"
+      },
+      {
+        "command": "contextDelta.showPacketDiff",
+        "title": "Context Delta: Show Packet Diff"
+      },
+      {
+        "command": "contextDelta.generateManagerSummary",
+        "title": "Context Delta: Generate Manager Summary"
+      },
+      {
+        "command": "contextDelta.showSetup",
+        "title": "Context Delta: Check Setup"
+      },
+      {
+        "command": "contextDelta.fixSetup",
+        "title": "Context Delta: Install VS Code Extension"
+      },
+      {
+        "command": "contextDelta.showDrift",
+        "title": "Context Delta: Review Agent Drift"
+      },
+      {
+        "command": "contextDelta.chooseAgent",
+        "title": "Context Delta: Choose Preferred Agent"
+      },
+      {
+        "command": "contextDelta.prepareCurrentChanges",
+        "title": "Context Delta: Prepare Current Changes"
+      },
+      {
+        "command": "contextDelta.copyLatestPacket",
+        "title": "Context Delta: Copy Latest Packet JSON"
+      },
+      {
+        "command": "contextDelta.copyCompactPacket",
+        "title": "Context Delta: Copy Compact Packet"
+      },
+      {
+        "command": "contextDelta.copyAgentHandoff",
+        "title": "Context Delta: Copy Agent Handoff"
+      },
+      {
+        "command": "contextDelta.copyForCodex",
+        "title": "Context Delta: Prepare and Copy for Codex"
+      },
+      {
+        "command": "contextDelta.copyForClaude",
+        "title": "Context Delta: Prepare and Copy for Claude"
+      },
+      {
+        "command": "contextDelta.copyForCopilot",
+        "title": "Context Delta: Prepare and Copy for Copilot"
+      },
+      {
+        "command": "contextDelta.copyReplayPrompt",
+        "title": "Context Delta: Copy Replay Prompt"
+      },
+      {
+        "command": "contextDelta.approveLatestPacket",
+        "title": "Context Delta: Approve Latest Packet"
+      },
+      {
+        "command": "contextDelta.includePath",
+        "title": "Context Delta: Include Path"
+      },
+      {
+        "command": "contextDelta.excludePath",
+        "title": "Context Delta: Exclude Path"
+      },
+      {
+        "command": "contextDelta.tuneControls",
+        "title": "Context Delta: Tune Packet Controls"
+      },
+      {
+        "command": "contextDelta.cleanupControls",
+        "title": "Context Delta: Remove Stale Packet Controls"
+      },
+      {
+        "command": "contextDelta.clearControls",
+        "title": "Context Delta: Clear Packet Controls"
+      },
+      {
+        "command": "contextDelta.refreshDashboard",
+        "title": "Context Delta: Refresh Dashboard"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "contextDelta.refreshDashboard",
+          "group": "navigation",
+          "when": "view == contextDelta.dashboard"
+        }
+      ]
+    }
+  }
+}

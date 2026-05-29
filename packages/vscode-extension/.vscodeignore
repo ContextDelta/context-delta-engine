@@ -1,0 +1,10 @@
+.contextdelta/**
+.vscode/**
+node_modules/**
+src/**
+test/**
+tests/**
+*.log
+*.vsix
+.DS_Store
+README.local.md
