@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Delta CLI | Context Delta</title>
+  <meta name="description" content="Use the Context Delta CLI to build context packets, inspect risk, produce handoffs, score packet-quality evals, and emit local metrics.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/cli.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">CLI</p>
+        <h1>Prepare context from the terminal.</h1>
+        <p class="lead">The CLI is the fastest path from a task prompt to a risk header, agent-ready handoff, inspectable packet, compact summary, report, and eval score.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Best for</strong>
+        <p>Developers who want Context Delta to fit the way they already work: terminal, editor, git, and copy-paste agent prompts.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="CLI sections">
+        <a class="active" href="#start" aria-current="true">Start</a>
+        <a href="#commands">Commands</a>
+        <a href="#outputs">Outputs</a>
+        <a href="#handoff">Agent handoff</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="start">
+          <h2>Start with one command.</h2>
+          <p>Use <code>prepare</code> before asking an AI coding agent to make a change. It prints a risk header and handoff in one step; the raw packet remains available for audit.</p>
+          <pre class="doc-code"><code>npm run setup -- --target cli
+npm run prepare -- "Add refresh token rotation"
+npm run drift</code></pre>
+        </section>
+
+        <section class="doc-section" id="commands">
+          <h2>The full command set.</h2>
+          <ul>
+            <li><strong>prepare</strong> builds context and prints an agent-ready handoff with <code>Context ready · risk=...</code>.</li>
+            <li><strong>setup</strong> checks first-run readiness for <code>--target cli</code>, <code>--target mcp</code>, <code>--target vscode</code>, or all local integrations.</li>
+            <li><strong>packet</strong> builds the raw current task packet (add <code>--report</code> for a local HTML report, <code>--dry-run</code> to skip writes).</li>
+            <li><strong>insights</strong> shows packet readiness, risk level, and recommended next steps.</li>
+            <li><strong>compact</strong> prints a small preview for chat-first workflows.</li>
+            <li><strong>controls --cleanup-stale</strong> removes manual pin/exclude paths that no longer exist.</li>
+            <li><strong>handoff</strong> copies prompt-ready context — <code>--format copilot | spec-kit | markdown | replay | json | compact</code>.</li>
+            <li><strong>eval</strong> scores packets against a labeled gold set; <code>npm run eval:multi</code> is the release-gated multi-shape suite.</li>
+            <li><strong>diff</strong> compares the current packet with the previous one; <strong>drift</strong> checks whether current git changes moved outside the packet.</li>
+            <li><strong>scan</strong> and <strong>snapshot</strong> inspect raw workspace signals and local change detection.</li>
+            <li><strong>metrics</strong> prints local context-quality signals; <strong>summary</strong> writes manager-friendly Markdown and JSON.</li>
+            <li><strong>report</strong> generates a standalone local HTML report for the latest packet.</li>
+            <li><strong>init</strong> creates a config file; <strong>doctor</strong> checks scanner health, git availability, and exclusions.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="outputs">
+          <h2>Local, inspectable outputs.</h2>
+          <p>Context Delta writes packet JSON, reports, history, metrics, and summaries under <code>.contextdelta/</code>. Metrics avoid raw code by default so teams can measure context quality without centralizing source.</p>
+          <pre class="doc-code"><code>$ npm run packet -- "Add refresh token rotation for admin users"
+
+Context Packet Ready
+Insight: Packet is ready for spec-driven AI coding.
+Risk: low
+Changed files: 3
+Related tests: 2
+Relevant specs: 1
+Rules/instructions: 2
+Excluded noisy files: 18
+Estimated context reduction: 64%
+Useful-context density: 58%
+Budget pressure: low</code></pre>
+          <div class="callout">Numbers above are an example run. Reduction is computed locally against a whole-repo baseline, so treat it as an upper bound rather than a guaranteed saving versus your agent's current context.</div>
+        </section>
+
+        <section class="doc-section" id="handoff">
+          <h2>Prompt-ready handoff.</h2>
+          <p>Use Copilot, Spec Kit, Markdown, replay, compact JSON, or full JSON formats depending on the agent and the depth of context needed.</p>
+          <div class="callout">The CLI also works without git by using local snapshots, so new users are not blocked by setup differences.</div>
+        </section>
+
+        <div class="doc-next">
+          <a href="vscode-extension.html">VS Code dashboard</a>
+          <a href="mcp-client-setup.html">MCP setup</a>
+          <a href="eval.html">Packet-quality eval</a>
+          <a href="metrics.html">Metrics</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

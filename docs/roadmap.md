@@ -36,6 +36,12 @@ Goal:
 Generate a useful local context packet from a workspace.
 ```
 
+Status:
+
+```text
+Initial version implemented.
+```
+
 Deliverables:
 
 - workspace scanner
@@ -43,7 +49,9 @@ Deliverables:
 - git diff support when available
 - markdown/spec parser
 - instruction detector
+- AGENTS.md / CLAUDE.md / Copilot / Cursor instruction precedence
 - basic related-test finder
+- source graph neighbor detection for changed files
 - packet builder
 - packet JSON output
 
@@ -61,21 +69,32 @@ Goal:
 Make the packet visible and useful.
 ```
 
+Status:
+
+```text
+Initial VS Code dashboard, packet viewer, item actions, insights, compact
+preview, packet diff, handoff copy, manager summary, and HTML report
+implemented.
+```
+
 Deliverables:
 
-- VS Code side panel
-- packet preview
-- token estimate
-- included/excluded reasons
-- freshness status
-- pin, exclude, expand, compact controls
-- packet history
+- VS Code side panel, initial implemented
+- packet preview, initial implemented
+- token estimate, implemented
+- included/excluded reasons, implemented
+- freshness status, implemented as warnings and insights
+- compact preview, implemented
+- pin and exclude controls, implemented through CLI/config and VS Code item actions
+- expand controls
+- packet history and latest diff, implemented
+- packet approval and replay prompts, implemented
 
 Exit criteria:
 
-- user can inspect and edit a packet before using it
+- user can inspect, pin, exclude, copy, and open packet items before using it
 - user can see estimated token savings
-- user can replay a previous packet
+- user can compare with a previous packet
 
 ## Phase 3: MCP Integration
 
@@ -85,14 +104,28 @@ Goal:
 Expose the local context engine to multiple AI coding agents.
 ```
 
+Status:
+
+```text
+Initial MCP stdio server implemented with packet, explain, insight, compact,
+diff, handoff, summary, report, scan, metrics, and resource read/list support.
+```
+
 Deliverables:
 
-- local MCP server
-- get_context_packet tool
-- explain_context_packet tool
+- local MCP server, initial implemented
+- get_context_packet tool, implemented
+- explain_context_packet tool, implemented
+- get_context_insights tool, implemented
+- get_compact_context_packet tool, implemented
+- diff_context_packets tool, implemented
+- render_context_handoff tool, implemented
+- generate_manager_summary tool, implemented
 - expand_context tool
+- packet eval, approval, and replay tools, implemented
 - recent delta resource
-- metrics resource
+- current packet, compact packet, insights, diff, handoff, report, manager
+  summary, and metrics resources, implemented
 
 Exit criteria:
 
@@ -134,6 +167,8 @@ Deliverables:
 
 - local JSONL metrics export
 - weekly repo summary
+- useful-context density
+- packet-quality eval harness and demo gold set
 - GitHub Action report
 - privacy-safe aggregation schema
 - manager-friendly summary view
@@ -167,4 +202,3 @@ Exit criteria:
 - teams can aggregate metrics across repos
 - admins can enforce context policies
 - sensitive context remains controlled and visible
-

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Release Readiness | Context Delta</title>
+  <meta name="description" content="Validate Context Delta locally before launch with release checks, tests, syntax validation, doctor, smoke demo, and packaging steps.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/release.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">Release</p>
+        <h1>Keep the alpha launchable.</h1>
+        <p class="lead">Release checks make sure the CLI, engine, MCP server, VS Code extension, docs, CI, demo workspace, and Pages site stay coherent.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Current status</strong>
+        <p>Local release validation passes with tests, syntax checks, workspace doctor, and demo smoke path.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="Release sections">
+        <a class="active" href="#check" aria-current="true">Check</a>
+        <a href="#covers">Coverage</a>
+        <a href="#pages">Pages</a>
+        <a href="#before">Before launch</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="check">
+          <h2>Run the full local check.</h2>
+          <pre class="doc-code"><code>npm run release:check</code></pre>
+          <p>This is the default confidence command before a maintainer commits, tags, publishes, or announces anything.</p>
+        </section>
+
+        <section class="doc-section" id="covers">
+          <h2>What it covers.</h2>
+          <ul>
+            <li>Required docs, package metadata, and Pages files.</li>
+            <li>Node test suite and syntax checks.</li>
+            <li>Workspace doctor and demo smoke path.</li>
+            <li>VS Code manifest readiness and CI workflow coverage.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="pages">
+          <h2>GitHub Pages settings.</h2>
+          <pre class="doc-code"><code>Source: Deploy from a branch
+Branch: main
+Folder: /docs</code></pre>
+          <p>The expected public URL is `https://contextdelta.github.io/context-delta-engine/`.</p>
+        </section>
+
+        <section class="doc-section" id="before">
+          <h2>Before public announcement.</h2>
+          <p>Run on real repositories, validate MCP flows in multiple clients, capture screenshots or a short demo, and create the first GitHub release from the maintainer account.</p>
+        </section>
+
+        <div class="doc-next">
+          <a href="cli.html">CLI</a>
+          <a href="metrics.html">Metrics</a>
+          <a href="index.html">Landing page</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

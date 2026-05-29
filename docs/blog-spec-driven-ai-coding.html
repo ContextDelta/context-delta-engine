@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec-driven AI coding needs context control | Context Delta Blog</title>
+  <meta name="description" content="Spec-driven development and Spec Kit workflows need current, bounded, inspectable context packets for AI coding agents.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/blog-spec-driven-ai-coding.html">
+  <meta property="og:title" content="Spec-driven AI coding needs context control">
+  <meta property="og:description" content="Specs help only when the agent gets the right slice at the right time.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://contextdelta.github.io/context-delta-engine/blog-spec-driven-ai-coding.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <article class="article-body">
+      <p class="article-meta">Spec-driven · Launch note</p>
+      <h1>Spec-driven AI coding needs context control.</h1>
+      <section class="doc-section">
+        <p>Spec-driven development gives teams a better way to describe intent. The next problem is delivery: which part of the spec should the agent see for this task, and what code and tests prove it?</p>
+        <h2>The spec is not the whole prompt.</h2>
+        <p>Dumping every planning document into an agent prompt can be as harmful as sending no spec at all. Context Delta ranks relevant sections and attaches nearby code, tests, and repo instructions.</p>
+        <h2>Where Spec Kit fits</h2>
+        <p>Spec Kit structures intent. Context Delta prepares the current local packet that carries the right slice of that intent into Copilot, Claude Code, Cursor, or another MCP-compatible agent.</p>
+        <div class="callout">The goal is not to replace spec-driven development. The goal is to make it usable at agent speed.</div>
+      </section>
+    </article>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

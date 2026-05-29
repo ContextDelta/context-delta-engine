@@ -13,7 +13,7 @@ Developer prompt
   -> Packet building
   -> Packet viewer
   -> Agent delivery
-  -> Metrics and replay
+  -> Metrics, diff, and replay
 ```
 
 ## Core Components
@@ -22,10 +22,13 @@ Developer prompt
 
 User-facing surface:
 
+- activity bar dashboard
 - packet preview
+- insight headline and risk level
 - token estimate
 - include/exclude reasons
 - pin, exclude, expand, compact controls
+- item actions and prompt-ready handoff copy
 - current workspace status
 - metrics summary
 
@@ -40,15 +43,24 @@ Local runtime that:
 - detects instruction files
 - finds related tests
 - builds context packets
+- builds insight and compact preview surfaces
+- builds packet diffs and handoff formats
 - stores packet history
 - emits metrics
+- writes manager summaries
 
 ### MCP Server
 
 Portable integration layer for agents:
 
+- prepare context as one agent-first handoff
 - get current packet
 - explain packet
+- get packet insights
+- get compact packet preview
+- diff packets
+- render agent handoffs
+- generate manager summaries
 - expand context
 - pin or exclude context items
 - fetch recent deltas
@@ -169,4 +181,3 @@ optional sharing or aggregation.
 - Make exclusions visible.
 - Prefer graceful degradation over hard failure.
 - Keep adapters thin and replaceable.
-

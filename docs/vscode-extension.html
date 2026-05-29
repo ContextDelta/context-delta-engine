@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VS Code Extension | Context Delta</title>
+  <meta name="description" content="Use Context Delta from a VS Code activity bar dashboard with packet previews, diffs, handoffs, replay prompts, approvals, and metrics.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/vscode-extension.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">VS Code</p>
+        <h1>Keep context ready without living in a dashboard.</h1>
+        <p class="lead">The extension brings quiet status, a remembered preferred agent, one-click handoffs, included files, warnings, replay prompts, approvals, diffs, and manager summaries into the editor.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Design goal</strong>
+        <p>Make context review feel like a normal editor action, not a separate platform or a new workflow to memorize.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="VS Code sections">
+        <a class="active" href="#dashboard" aria-current="true">Dashboard</a>
+        <a href="#actions">Actions</a>
+        <a href="#review">Review</a>
+        <a href="#teams">Team use</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="dashboard">
+          <h2>Activity bar dashboard.</h2>
+          <p>The Context Delta view shows packet readiness, risk level, useful-context density, budget pressure, token savings, stale spec warnings, and included context groups. The status bar keeps the default view smaller: <code>Context ready · risk</code>.</p>
+        </section>
+
+        <section class="doc-section" id="actions">
+          <h2>Editor-native actions.</h2>
+          <ul>
+            <li>Prepare current changes for your preferred agent without retyping a task when the branch or diff is enough.</li>
+            <li>Switch the preferred agent between Codex, Claude, and Copilot once instead of choosing every prompt.</li>
+            <li>Check or fix VS Code setup from the editor when installation state is unclear.</li>
+            <li>Build or refresh a raw packet when you want the audit trail.</li>
+            <li>Open included files directly from the packet tree.</li>
+            <li>Copy Copilot or Spec Kit handoff text.</li>
+            <li>Copy a replay prompt or record an approve/needs-expansion decision.</li>
+            <li>Use collapsed advanced controls for exact include/exclude paths, stale-control cleanup, and general presets.</li>
+            <li>Open setup, drift, packet diff, insight, metrics, report, and summary webviews.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="review">
+          <h2>Review without friction.</h2>
+          <p>The extension is intentionally thin over the local engine. Developers can trust that the CLI, MCP server, and VS Code surface are reading the same packet.</p>
+        </section>
+
+        <section class="doc-section" id="teams">
+          <h2>Useful for teams.</h2>
+          <p>Teams can standardize context review while still letting developers use Codex, GitHub Copilot, Claude Code, or another agent.</p>
+          <div class="callout">The extension is marked preview until packaged extension-host testing and marketplace readiness are complete.</div>
+        </section>
+
+        <div class="doc-next">
+          <a href="cli.html">CLI</a>
+          <a href="metrics.html">Metrics</a>
+          <a href="release.html">Release readiness</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

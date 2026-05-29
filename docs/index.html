@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Delta | Context packet layer for AI coding agents</title>
+  <meta name="description" content="Open-source context packet layer for GitHub Copilot, VS Code, MCP agents, Spec Kit, and spec-driven development: inspectable, replayable, local-first by default, and measurable.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/">
+  <meta property="og:title" content="Context Delta">
+  <meta property="og:description" content="Inspectable, replayable, local-first context packets for AI coding agents.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://contextdelta.github.io/context-delta-engine/">
+  <meta property="og:image" content="site/assets/packet-preview.svg">
+  <link rel="stylesheet" href="site/styles.css">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "Context Delta",
+      "description": "Open-source context packet layer for AI coding agents: inspectable, replayable, local-first by default, measurable, and portable across tools.",
+      "url": "https://contextdelta.github.io/context-delta-engine/",
+      "codeRepository": "https://github.com/ContextDelta/context-delta-engine",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "programmingLanguage": "JavaScript",
+      "applicationCategory": "DeveloperTool"
+    }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="#why">Why</a>
+      <a href="#demo">Demo</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-visual" aria-hidden="true">
+        <img src="site/assets/packet-preview.svg" alt="">
+      </div>
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="hero-content">
+        <p class="eyebrow">Apache-2.0 open source · Local-first · Alpha</p>
+        <h1>The context packet layer for AI coding agents.</h1>
+        <p class="lead">
+          Context Delta builds a small, fresh, inspectable packet — the files
+          that changed, the tests that cover them, the spec that defines them,
+          the rules that govern them — for Codex, Claude Code, GitHub Copilot,
+          or any MCP agent. The default is quiet: prepare context, show risk,
+          and interrupt only when something needs review.
+        </p>
+        <p class="hero-proof">
+          <span class="hero-proof-before">~2,667 estimated baseline tokens</span>
+          <span class="hero-proof-arrow" aria-hidden="true">→</span>
+          <span class="hero-proof-after">~1,262 focused tokens · 96% useful-context density · related test kept · stale spec dropped</span>
+        </p>
+        <p class="hero-proof-note">Measured on the bundled demo workspace and reproducible with <code>npm run eval:multi</code>, not an illustrative figure.</p>
+        <div class="actions">
+          <a class="button primary" href="#quickstart">Try the CLI</a>
+          <a class="button" href="eval.html">See packet eval</a>
+          <a class="button" href="https://github.com/ContextDelta/context-delta-engine">View on GitHub</a>
+        </div>
+      </div>
+      <div class="hero-strip" aria-label="Supported workflow badges">
+        <a href="github-copilot.html">GitHub Copilot</a>
+        <a href="vscode-extension.html">VS Code</a>
+        <a href="mcp-client-setup.html">MCP</a>
+        <a href="spec-kit.html">Spec Kit</a>
+        <a href="cli.html">Codex</a>
+        <a href="mcp-client-setup.html">Claude Code</a>
+      </div>
+    </section>
+
+    <section class="quickstart" id="quickstart">
+      <div class="section-heading">
+        <p class="eyebrow">Quick start</p>
+        <h2>Use your agent normally. Let Context Delta prepare the context.</h2>
+        <p>
+          Local-first and tool-agnostic. No IDE switch, no account. Packets are
+          built and stored locally; agents can use the handoff directly, while
+          the full packet stays available as the audit trail. Works with or
+          without git.
+        </p>
+        <div class="trust-row" aria-label="Project trust signals">
+          <span>Apache-2.0</span>
+          <span>No account required</span>
+          <span>Works without git</span>
+          <span>CLI first</span>
+          <span>MCP ready</span>
+        </div>
+      </div>
+      <div class="quickstart-grid">
+        <div class="terminal" aria-label="Context Delta MCP quick start commands">
+          <div class="terminal-bar"><span></span><span></span><span></span></div>
+          <pre><code># Agent-integrated path
+npm install
+npm run setup -- --target mcp
+
+# Copy host config and connect your MCP-capable agent
+npm run doctor -- --mcp
+
+# Then ask your agent normally.
+# The agent should call prepare_context before editing
+# and review_context_drift before final review.</code></pre>
+        </div>
+        <div class="terminal" aria-label="Context Delta manual handoff commands">
+          <div class="terminal-bar"><span></span><span></span><span></span></div>
+          <pre><code># Manual handoff path
+npm install
+npm run setup -- --target cli
+
+npm run prepare -- "Review the current UI changes"
+Context ready · risk=low · budget=low · warnings=0
+
+# Paste the handoff into Codex, Claude, or Copilot.
+# After the agent edits:
+npm run drift</code></pre>
+        </div>
+        <aside class="quickstart-aside">
+          <p class="status-note">
+            <strong>Status: Alpha.</strong> The CLI works today on real
+            repositories. The MCP server and VS Code dashboard are in active
+            development.
+          </p>
+          <p>Prefer a no-risk trial? Run a prepared handoff against the bundled demo workspace:</p>
+          <pre class="doc-code"><code>npm run prepare -- "Add admin refresh token rotation" \
+  --workspace examples/demo-workspace --dry-run</code></pre>
+          <a class="button primary" href="cli.html">Full CLI reference</a>
+        </aside>
+      </div>
+    </section>
+
+    <section class="problem" id="why">
+      <div class="section-heading">
+        <p class="eyebrow">The failure mode</p>
+        <h2>Most AI coding misses are context misses.</h2>
+        <p>
+          Agents often receive stale specs, random open files, missing tests,
+          hidden prompt assembly, and too much unrelated code. Context Delta
+          makes the working set visible, bounded, and current.
+        </p>
+      </div>
+      <div class="compare">
+        <article>
+          <h3>Without Context Delta</h3>
+          <ul>
+            <li>Old auth docs mixed with current requirements</li>
+            <li>Related tests missed</li>
+            <li>Repo instructions buried</li>
+            <li>Token cost unknown</li>
+            <li>Exclusions invisible</li>
+          </ul>
+        </article>
+        <article>
+          <h3>With Context Delta</h3>
+          <ul>
+            <li>Changed artifacts anchored first</li>
+            <li>Spec sections and tests included with reasons</li>
+            <li>Warnings and redactions shown</li>
+            <li>Compact packet and agent handoff ready</li>
+            <li>Metrics emitted without raw code by default</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="visual-proof" id="demo">
+      <div class="section-heading">
+        <p class="eyebrow">The demo in one glance</p>
+        <h2>Less prompt noise, more useful context.</h2>
+        <p>
+          A packet turns a broad, messy context pile into the files, specs,
+          tests, rules, and warnings the agent needs for the task at hand.
+        </p>
+      </div>
+      <div class="visual-frame">
+        <img src="site/assets/context-savings-preview.svg" alt="Before and after context packet comparison showing 72 percent context saved">
+        <p class="figure-note">Illustrative example. Actual savings depend on your repo, the task, and the baseline you compare against.</p>
+      </div>
+      <div class="demo-steps" aria-label="Quick demo flow">
+        <article>
+          <span>1</span>
+          <strong>Prepare</strong>
+          <code>npm run prepare -- "Add admin refresh token rotation"</code>
+        </article>
+        <article>
+          <span>2</span>
+          <strong>Let the agent work</strong>
+          <code>prepare_context(task)</code>
+        </article>
+        <article>
+          <span>3</span>
+          <strong>Review drift</strong>
+          <code>npm run drift</code>
+        </article>
+      </div>
+    </section>
+
+    <section class="objection" id="compared">
+      <div class="section-heading">
+        <p class="eyebrow">The honest question</p>
+        <h2>Why not just use my agent's built-in context?</h2>
+        <p>
+          Codex, Copilot, and Claude Code already gather context for you. The
+          difference is that they do it invisibly — you can't see what was
+          sent, you can't correct it, and you can't measure it across a team.
+          Context Delta turns context into an artifact you control.
+        </p>
+      </div>
+      <div class="objection-grid">
+        <article>
+          <h3>Transparent, not hidden</h3>
+          <p>Every included file, spec, and test carries a reason. Every exclusion is listed. The packet is available when risk or drift says review is needed.</p>
+        </article>
+        <article>
+          <h3>Portable, not locked in</h3>
+          <p>One local packet feeds Codex, Copilot, Claude Code, or any MCP agent. Change tools without rebuilding your context setup.</p>
+        </article>
+        <article>
+          <h3>Measurable, not opaque</h3>
+          <p>Privacy-safe metrics show context reduction, risk, and stale-spec warnings — without shipping raw source to a server.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="workflow" id="workflow">
+      <div class="section-heading">
+        <p class="eyebrow">How it works</p>
+        <h2>A packet workflow that fits normal development.</h2>
+      </div>
+      <div class="timeline">
+        <article>
+          <span>01</span>
+          <h3>Scan signals</h3>
+          <p>Read git status or local snapshots, specs, docs, tests, instructions, and user controls.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Rank context</h3>
+          <p>Prefer fresh changed files, matching spec sections, nearby tests, and governing rules.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Prepare handoff</h3>
+          <p>Return a prompt-ready handoff plus risk, budget, warning, test, and spec signals.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>Check drift</h3>
+          <p>After agent edits, compare current changes with the latest packet and rebuild only when needed.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="showcase" id="integrations">
+      <div class="showcase-copy">
+        <p class="eyebrow">Product surface</p>
+        <h2>CLI, MCP server, and VS Code dashboard from the same local engine.</h2>
+        <p>
+          The engine writes packets, reports, diffs, handoffs, and manager
+          summaries under `.contextdelta/`. Integrations stay thin, visible,
+          and replaceable.
+        </p>
+      </div>
+      <div class="terminal" aria-label="Context Delta CLI example">
+        <div class="terminal-bar"><span></span><span></span><span></span></div>
+        <pre><code>$ npm run prepare -- "Add refresh token rotation"
+
+Context ready · risk=low · budget=low · warnings=0 · tests=2 · specs=1
+Packet is ready for spec-driven AI coding.
+
+$ npm run drift
+Risk: low
+Changed outside packet: 0</code></pre>
+      </div>
+      <p class="figure-note">Sample CLI output. Token figures are illustrative and computed locally per run.</p>
+    </section>
+
+    <section class="preview-band">
+      <div class="section-heading">
+        <p class="eyebrow">Editor preview</p>
+        <h2>A dashboard for context quality, not another place to work.</h2>
+        <p>
+          Developers can prepare context, copy a Codex, Claude, or Copilot
+          handoff, check setup, review drift, and inspect diffs without
+          leaving VS Code.
+        </p>
+      </div>
+      <div class="visual-frame">
+        <img src="site/assets/vscode-dashboard-preview.svg" alt="Context Delta VS Code dashboard preview">
+      </div>
+    </section>
+
+    <section class="feature-grid">
+      <article>
+        <h3>For Developers</h3>
+        <p>Keep using Codex, Copilot, Claude Code, or local agents. Context Delta prepares the packet underneath.</p>
+      </article>
+      <article>
+        <h3>For Spec-Driven Teams</h3>
+        <p>Bring Spec Kit, tasks, acceptance criteria, implementation files, and tests into one visible working set.</p>
+      </article>
+      <article>
+        <h3>For Senior Engineers</h3>
+        <p>Inspect why files were included, what was excluded, what changed since the previous packet, and what risks remain.</p>
+      </article>
+      <article>
+        <h3>For Leaders</h3>
+        <p>Track estimated token savings, risk mix, stale spec warnings, redactions, and budget pressure without collecting raw code.</p>
+      </article>
+    </section>
+
+    <section class="metrics-band" id="metrics">
+      <div class="section-heading">
+        <p class="eyebrow">Observable by design</p>
+        <h2>Measure context quality without making context opaque.</h2>
+        <p>
+          Useful-context density, eval results, and local rollups help teams
+          improve quality without pretending token savings prove correctness.
+        </p>
+      </div>
+      <div class="metrics">
+        <article>
+          <span class="metric-label">Demo useful density</span>
+          <strong>96%</strong>
+          <span>average useful-context density across the bundled gold set</span>
+        </article>
+        <article>
+          <span class="metric-label">Eval pass rate</span>
+          <strong>3/3</strong>
+          <span>demo cases passed with impact coverage and omission checks</span>
+        </article>
+        <article>
+          <span class="metric-label">Metrics stream</span>
+          <strong>JSONL</strong>
+          <span>repo-local rollups for managers and dashboards</span>
+        </article>
+        <article>
+          <span class="metric-label">Raw code in metrics</span>
+          <strong>0</strong>
+          <span>metrics avoid raw source and packet text by default</span>
+        </article>
+      </div>
+      <p class="metrics-note">Demo numbers are illustrative from the bundled eval workspace. Token reduction is a cost signal; packet-quality eval is the correctness signal.</p>
+      <div class="visual-frame metrics-preview">
+        <img src="site/assets/metrics-rollup-preview.svg" alt="Context Delta team metrics rollup preview">
+      </div>
+    </section>
+
+    <section class="docs-strip">
+      <div>
+        <p class="eyebrow">Start here</p>
+        <h2>Prepare agent context in minutes.</h2>
+      </div>
+      <div class="doc-links">
+        <a href="cli.html">CLI</a>
+        <a href="github-copilot.html">GitHub Copilot</a>
+        <a href="vscode-extension.html">VS Code</a>
+        <a href="mcp-client-setup.html">MCP setup</a>
+        <a href="spec-kit.html">Spec Kit</a>
+        <a href="metrics.html">Metrics</a>
+        <a href="eval.html">Eval</a>
+        <a href="blog.html">Blog</a>
+        <a href="release.html">Release readiness</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Apache-2.0 open source.</span>
+    <span>Independent project. Not affiliated with GitHub, Microsoft, Anthropic, Cursor, OpenAI, or Spec Kit.</span>
+  </footer>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

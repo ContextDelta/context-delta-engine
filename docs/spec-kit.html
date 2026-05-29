@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec Kit Workflows | Context Delta</title>
+  <meta name="description" content="Use Context Delta with Spec Kit and spec-driven development so agents receive current specs, tasks, code, tests, and constraints together.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/spec-kit.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">Spec Kit</p>
+        <h1>Make specs part of the agent's working set.</h1>
+        <p class="lead">Context Delta complements Spec Kit and spec-driven development by keeping specs, plans, tasks, implementation files, tests, and rules visible in one packet.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Positioning</strong>
+        <p>Spec Kit helps structure intent. Context Delta helps deliver the right slice of that intent to AI coding agents.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="Spec sections">
+        <a class="active" href="#fit" aria-current="true">Fit</a>
+        <a href="#packet">Packet</a>
+        <a href="#handoff">Handoff</a>
+        <a href="#scale">Scale</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="fit">
+          <h2>Built for spec-driven development.</h2>
+          <p>Context Delta scans Markdown specs and instructions, finds relevant sections, and ranks them alongside changed implementation files and tests.</p>
+        </section>
+
+        <section class="doc-section" id="packet">
+          <h2>What the packet includes.</h2>
+          <ul>
+            <li>Changed code and nearby source files.</li>
+            <li>Relevant spec sections, plans, and tasks.</li>
+            <li>Acceptance criteria and repo instructions.</li>
+            <li>Related tests and missing-test warnings.</li>
+            <li>Exclusions, redactions, and budget pressure.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="handoff">
+          <h2>Spec Kit handoff.</h2>
+          <p>The handoff format gives agents a concise task brief, included artifacts, constraints, and warnings so implementation stays grounded in the current spec.</p>
+          <pre class="doc-code"><code>npm run handoff -- --format spec-kit</code></pre>
+        </section>
+
+        <section class="doc-section" id="scale">
+          <h2>Useful as specs grow.</h2>
+          <p>As a repo gains more specs, Context Delta can keep agent prompts focused on the relevant slice instead of dumping every planning document into context.</p>
+        </section>
+
+        <div class="doc-next">
+          <a href="cli.html">CLI</a>
+          <a href="mcp-client-setup.html">MCP setup</a>
+          <a href="vscode-extension.html">VS Code</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

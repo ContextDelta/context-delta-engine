@@ -7,6 +7,11 @@ The user should not have to become a prompt engineer, context librarian, or
 tool integrator. The product should prepare context quietly, then make it
 visible when the user wants to inspect it.
 
+Status: this document describes the product direction. The current alpha
+implements the CLI handoff, MCP `prepare_context`, drift review, and a local
+VS Code preview. Full automatic behavior depends on the host exposing MCP
+tools or lifecycle hooks.
+
 ## UX Principle
 
 ```text
@@ -52,24 +57,41 @@ The default panel should be simple:
 ```text
 Current Context Packet
 
-Task readiness: Good
+Insight: Packet is ready for spec-driven AI coding.
+Risk: low
 Changed files: 3
 Related tests: 2
 Relevant specs: 1
 Rules/instructions: 2
 Excluded noisy files: 18
 Estimated context reduction: 64%
+Budget pressure: low
 ```
 
-The panel should have three obvious actions:
+The panel should have obvious agent-first actions:
 
 ```text
-Inspect Packet
-Expand Context
-Send To Agent
+Copy For Codex
+Copy For Claude
+Copy For Copilot
 ```
 
 Power-user controls can exist, but they should not dominate the first view.
+Manual pinning and excluding should be a fallback, not the normal path. For
+common tasks like GitHub Pages/UI review, the extension should infer a preset,
+clear stale controls, and prepare the agent handoff in one action.
+
+Advanced controls should be available behind a collapsed drawer:
+
+```text
+Advanced controls
+- Include path
+- Exclude path
+- Tune presets
+- Rebuild packet
+- Open config
+- Reports, metrics, replay, raw JSON
+```
 
 ## Packet Viewer
 
@@ -85,7 +107,12 @@ It should show:
 - stale spec warnings
 - token estimate
 - estimated savings
-- pin, exclude, expand, compact controls
+- direct copy buttons for Codex, Claude, and Copilot
+- collapsed advanced controls for include path, exclude path, presets, rebuild,
+  clear controls, and raw packet JSON
+- open, copy path, copy snippet, pin, exclude, expand, compact controls inside
+  the advanced context list
+- packet history and previous/current diff
 
 The viewer should answer the user's real question:
 
@@ -201,4 +228,3 @@ For a manager:
 We can see context savings and friction across repos without collecting raw
 source code.
 ```
-

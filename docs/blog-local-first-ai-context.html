@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why AI coding context should start local | Context Delta Blog</title>
+  <meta name="description" content="Local-first context packet generation helps developers inspect source context, avoid raw-code metrics, and keep AI coding handoffs transparent.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/blog-local-first-ai-context.html">
+  <meta property="og:title" content="Why AI coding context should start local">
+  <meta property="og:description" content="Visible, repo-local packet generation before AI coding handoff.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://contextdelta.github.io/context-delta-engine/blog-local-first-ai-context.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <article class="article-body">
+      <p class="article-meta">Local-first · Launch note</p>
+      <h1>Why AI coding context should start local.</h1>
+      <section class="doc-section">
+        <p>AI coding tools can be useful without turning every context decision into a cloud platform decision. A local-first context layer starts from the developer workspace, writes local artifacts, and keeps packet review close to the code.</p>
+        <h2>Local first does not mean isolated.</h2>
+        <p>The packet can still be copied into GitHub Copilot, served through MCP, or reviewed in VS Code. The important part is that packet construction happens where the source, specs, tests, exclusions, and team instructions already live.</p>
+        <h2>Metrics without raw source</h2>
+        <p>Teams need to understand context quality: budget pressure, repeated lookups, stale specs, redactions, and estimated tokens saved. Those metrics can be useful without collecting raw code by default.</p>
+        <div class="callout">Context Delta is Apache-2.0 open source so teams can inspect the packet rules instead of trusting a black box.</div>
+      </section>
+    </article>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

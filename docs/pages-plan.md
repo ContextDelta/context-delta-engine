@@ -1,13 +1,12 @@
 # GitHub Pages Plan
 
-GitHub Pages should become the polished public explanation once the project
-has a prototype or visual demo.
-
-Until then, the README should carry the main story.
+GitHub Pages now has a polished landing page at `docs/index.html`. The README
+still carries the full developer story, while Pages is optimized for fast
+public understanding and first impression.
 
 ## Website Structure
 
-Suggested pages:
+Current and planned pages:
 
 ```text
 Home
@@ -26,14 +25,14 @@ Docs
 Headline:
 
 ```text
-Give your AI coding agent the right context, not the biggest context.
+The context packet layer for AI coding agents.
 ```
 
 Subhead:
 
 ```text
-Context Delta builds a small, fresh, inspectable context packet from your
-code, specs, tests, and instructions before your AI agent acts.
+Context Delta builds a small, fresh, inspectable, replayable context packet
+from code, specs, tests, and instructions before your AI agent acts.
 ```
 
 Primary visual:
@@ -42,17 +41,25 @@ Primary visual:
 Prompt -> Context Delta -> Context Packet -> AI Agent
 ```
 
+The current landing page uses a packet preview visual, before/after context
+savings visual, workflow steps, VS Code preview, integration positioning, and
+metrics proof points.
+
+The site also includes static docs, packet-quality eval, a blog index, starter
+articles, robots.txt, sitemap.xml, canonical links, scroll progress, and a
+shared scroll-to-top control.
+
 ## Demo Section
 
 Use one before/after example:
 
 ```text
 Before:
-28,000 tokens of mixed context
+~2,667 estimated baseline tokens
 
 After:
-7,800 tokens of focused context
-72% estimated context saved
+~1,262 focused tokens
+53% estimated context reduction · 96% useful-context density
 related test included
 stale spec excluded
 ```
@@ -69,4 +76,3 @@ The website should be:
 
 Avoid making it sound like a generic AI platform. The product is specific:
 context control for AI coding agents.
-

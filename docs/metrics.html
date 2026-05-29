@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metrics | Context Delta</title>
+  <meta name="description" content="Track useful-context density, eval quality, context reduction, risk mix, warnings, and redactions without collecting raw source code by default.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/metrics.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">Metrics</p>
+        <h1>Show whether the packet was useful, not just smaller.</h1>
+        <p class="lead">Context Delta emits local metrics that help developers and leaders understand useful-context density, packet quality, risk, budget pressure, and estimated token savings.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Default posture</strong>
+        <p>Metrics are designed to be useful without collecting raw code, packet text, or private implementation detail by default.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="Metric sections">
+        <a class="active" href="#signals" aria-current="true">Signals</a>
+        <a href="#summary">Summary</a>
+        <a href="#orgs">Org rollup</a>
+        <a href="#trust">Trust</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="signals">
+          <h2>Signals emitted per packet.</h2>
+          <ul>
+            <li>Estimated input tokens saved and context reduction.</li>
+            <li>Heuristic useful-context density, plus labeled eval scores when a gold set exists.</li>
+            <li>Risk level, budget pressure, warnings, and redaction count.</li>
+            <li>Included files by kind: source, spec, test, instruction, and docs.</li>
+            <li>Packet freshness and previous/current diff information.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="summary">
+          <h2>Manager summary.</h2>
+          <p>Generate local Markdown and JSON summaries for team-level review, demos, and launch storytelling.</p>
+          <pre class="doc-code"><code>npm run summary
+npm run metrics
+npm run eval -- --workspace examples/demo-workspace --cases ../eval/gold-set.json</code></pre>
+        </section>
+
+        <section class="doc-section" id="orgs">
+          <h2>Org-level rollups later.</h2>
+          <p>The metrics shape is intentionally aggregate-friendly: teams can collate JSONL outputs across repos without shipping source code into a central dashboard.</p>
+        </section>
+
+        <section class="doc-section" id="trust">
+          <h2>Observability without opacity.</h2>
+          <p>The same packet that produces metrics is inspectable by the developer, so token savings and risk signals are explainable rather than mysterious.</p>
+        </section>
+
+        <div class="doc-next">
+          <a href="cli.html">CLI</a>
+          <a href="eval.html">Packet-quality eval</a>
+          <a href="vscode-extension.html">VS Code</a>
+          <a href="release.html">Release readiness</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

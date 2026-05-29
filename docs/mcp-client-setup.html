@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP Client Setup | Context Delta</title>
+  <meta name="description" content="Expose Context Delta packets, insights, diffs, handoffs, evals, replay prompts, summaries, scans, and metrics through an MCP stdio server.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/mcp-client-setup.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">MCP</p>
+        <h1>Let compatible agents prepare context before they act.</h1>
+        <p class="lead">The MCP server gives agents one primary tool, <code>prepare_context</code>, which returns a risk header and prompt-ready handoff without making developers copy packets by hand.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Why it matters</strong>
+        <p>Agents can request the same reviewed packet without each tool inventing its own hidden context assembly.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="MCP sections">
+        <a class="active" href="#server" aria-current="true">Server</a>
+        <a href="#tools">Tools</a>
+        <a href="#config">Config</a>
+        <a href="#safety">Safety</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="server">
+          <h2>Run the stdio server.</h2>
+          <p>Use the MCP entrypoint from the repository during development, or from the package once published.</p>
+          <pre class="doc-code"><code>CONTEXT_DELTA_WORKSPACE=/absolute/path/to/repo \
+node packages/mcp-server/bin/context-delta-mcp.js</code></pre>
+        </section>
+
+        <section class="doc-section" id="tools">
+          <h2>Available tools.</h2>
+          <ul>
+            <li><strong>prepare_context</strong> is the normal first call. It builds or refreshes context, infers the task when needed, and returns a handoff plus <code>Context ready · risk=...</code>.</li>
+            <li><strong>check_context_setup</strong> explains whether the requested CLI, MCP, VS Code, or all-integrations target is ready in the workspace.</li>
+            <li><strong>review_context_drift</strong> checks after edits whether current git changes moved outside the latest packet.</li>
+            <li><strong>packet</strong> builds or returns raw packet JSON for audit and debugging.</li>
+            <li><strong>compact</strong> returns a short preview for small prompts.</li>
+            <li><strong>insights</strong> explains risk, warnings, and readiness.</li>
+            <li><strong>diff</strong> compares current and previous packets.</li>
+            <li><strong>handoff</strong> returns prompt-ready Markdown or JSON.</li>
+            <li><strong>eval</strong>, <strong>approval</strong>, and <strong>replay</strong> support reviewable packet-quality workflows.</li>
+            <li><strong>summary</strong>, <strong>report</strong>, <strong>scan</strong>, and <strong>metrics</strong> support review and observability.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="config">
+          <h2>Client config shape.</h2>
+          <p>Run <code>npm run setup -- --target mcp</code> to check agent-integration readiness. Run <code>npm run doctor -- --mcp</code> to print the current checkout's command and workspace path.</p>
+          <pre class="doc-code"><code>{
+  "mcpServers": {
+    "context-delta": {
+      "command": "node",
+      "args": [
+        "packages/mcp-server/bin/context-delta-mcp.js"
+      ],
+      "env": {
+        "CONTEXT_DELTA_WORKSPACE": "/absolute/path/to/repo"
+      }
+    }
+  }
+}</code></pre>
+          <p>When a host cannot call MCP tools directly, use the VS Code prepare-and-copy action as the fallback.</p>
+        </section>
+
+        <section class="doc-section" id="safety">
+          <h2>Local-first safety.</h2>
+          <p>The server runs locally against the workspace. Packet assembly and storage stay local by default; sharing packet text with an agent host is explicit and user-controlled.</p>
+        </section>
+
+        <div class="doc-next">
+          <a href="cli.html">CLI</a>
+          <a href="spec-kit.html">Spec Kit</a>
+          <a href="eval.html">Eval</a>
+          <a href="metrics.html">Metrics</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

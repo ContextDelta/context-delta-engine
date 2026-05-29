@@ -12,6 +12,7 @@ use the next best signal instead of failing.
 | --- | --- |
 | No git repository | Use local snapshot diffing from first index. |
 | Git unavailable | Continue with file saves, snapshots, active files, and docs. |
+| Deleted git file | Include a missing/deleted artifact reason so the agent sees the removal. |
 | Huge repo | Index incrementally, ignore generated folders, lazy-load deep context. |
 | Monorepo | Let users scope to packages, services, or folders. |
 | Multiple repos | Start single-repo, later support linked repos and org graphs. |
@@ -19,6 +20,7 @@ use the next best signal instead of failing.
 | Renamed files | Detect by content hash and similarity, not only path. |
 | Generated files | Exclude by default unless pinned. |
 | Binary files | Track metadata only unless an extractor is configured. |
+| Oversized files | Ignore by default and show an ignored-file reason. |
 | Vendored dependencies | Exclude by default. |
 
 ## Spec And Documentation Edge Cases
@@ -82,4 +84,3 @@ docs, tests, and user intent.
 ```
 
 Context Delta should never require every signal to exist before it can help.
-

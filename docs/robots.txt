@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://contextdelta.github.io/context-delta-engine/sitemap.xml

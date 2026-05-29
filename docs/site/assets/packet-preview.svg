@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 760" role="img" aria-label="Context Delta packet preview">
+  <rect width="1100" height="760" fill="#f7f8fb"/>
+  <rect x="48" y="44" width="1004" height="672" rx="16" fill="#ffffff" stroke="#d6dce7"/>
+  <rect x="84" y="82" width="180" height="28" rx="6" fill="#0f766e"/>
+  <text x="104" y="101" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#ffffff">Context Packet</text>
+  <text x="84" y="152" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#172033">Ready for spec-driven AI coding</text>
+  <text x="84" y="190" font-family="Arial, sans-serif" font-size="18" fill="#59677d">Add refresh token rotation for admin users</text>
+
+  <g transform="translate(84 238)">
+    <rect width="216" height="112" rx="10" fill="#f3faf9" stroke="#b8e4dd"/>
+    <text x="20" y="36" font-family="Arial, sans-serif" font-size="16" fill="#59677d">Risk</text>
+    <text x="20" y="78" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#0f766e">low</text>
+  </g>
+  <g transform="translate(324 238)">
+    <rect width="216" height="112" rx="10" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="20" y="36" font-family="Arial, sans-serif" font-size="16" fill="#59677d">Saved</text>
+    <text x="20" y="78" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#172033">9.2k</text>
+  </g>
+  <g transform="translate(564 238)">
+    <rect width="216" height="112" rx="10" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="20" y="36" font-family="Arial, sans-serif" font-size="16" fill="#59677d">Specs</text>
+    <text x="20" y="78" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#2563eb">4</text>
+  </g>
+  <g transform="translate(804 238)">
+    <rect width="216" height="112" rx="10" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="20" y="36" font-family="Arial, sans-serif" font-size="16" fill="#59677d">Tests</text>
+    <text x="20" y="78" font-family="Arial, sans-serif" font-size="36" font-weight="700" fill="#b45309">2</text>
+  </g>
+
+  <text x="84" y="412" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#172033">Included context</text>
+  <g font-family="Arial, sans-serif" font-size="17">
+    <rect x="84" y="436" width="936" height="52" rx="8" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="110" y="468" fill="#172033">src/auth/service.ts</text>
+    <text x="814" y="468" fill="#59677d">changed</text>
+
+    <rect x="84" y="504" width="936" height="52" rx="8" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="110" y="536" fill="#172033">specs/004-admin-auth/spec.md#Refresh Token Rotation</text>
+    <text x="814" y="536" fill="#59677d">spec</text>
+
+    <rect x="84" y="572" width="936" height="52" rx="8" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="110" y="604" fill="#172033">tests/auth/admin-refresh.test.ts</text>
+    <text x="814" y="604" fill="#59677d">test</text>
+
+    <rect x="84" y="640" width="936" height="52" rx="8" fill="#f8fafc" stroke="#d6dce7"/>
+    <text x="110" y="672" fill="#172033">.github/copilot-instructions.md#Security</text>
+    <text x="814" y="672" fill="#59677d">rule</text>
+  </g>
+</svg>

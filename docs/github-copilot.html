@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub Copilot Workflows | Context Delta</title>
+  <meta name="description" content="Use Context Delta with GitHub Copilot so Copilot gets fresher files, relevant specs, nearby tests, and visible handoff context.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/github-copilot.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">GitHub Copilot</p>
+        <h1>Use Copilot as usual. Send it better context.</h1>
+        <p class="lead">Context Delta prepares a focused packet from changed files, specs, tests, and repo instructions before you ask Copilot to edit code.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Positioning</strong>
+        <p>Copilot is the coding assistant. Context Delta is the local context preparation layer that makes the handoff visible.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="Copilot sections">
+        <a class="active" href="#fit" aria-current="true">Fit</a>
+        <a href="#adds">Adds</a>
+        <a href="#handoff">Handoff</a>
+        <a href="#debug">Debug</a>
+      </nav>
+
+      <article class="doc-article">
+        <section class="doc-section" id="fit">
+          <h2>No workflow reset.</h2>
+          <p>Keep using Copilot Chat, agent mode, repo instructions, and prompt files. Context Delta gives you a reviewable packet first, so the prompt starts with less noise and fewer missing signals.</p>
+        </section>
+
+        <section class="doc-section" id="adds">
+          <h2>What Context Delta adds.</h2>
+          <ul>
+            <li>Changed-context detection from git or local snapshots.</li>
+            <li>Relevant spec and instruction sections with inclusion reasons.</li>
+            <li>Nearby tests and missing-test warnings.</li>
+            <li>Estimated token savings and budget pressure.</li>
+            <li>Excluded files and stale-context warnings.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section" id="handoff">
+          <h2>Copilot-ready handoff.</h2>
+          <p>Copy a Markdown handoff that states the task, packet readiness, included context, exclusions, risks, and recommended next steps.</p>
+          <pre class="doc-code"><code>npm run packet -- "Update admin refresh token behavior"
+npm run handoff -- --format copilot</code></pre>
+        </section>
+
+        <section class="doc-section" id="debug">
+          <h2>When Copilot misses, inspect the packet.</h2>
+          <p>If the answer looks wrong, you can see whether the right spec, test, instruction, and changed file were present before retrying with a better packet.</p>
+          <div class="callout">Context Delta does not depend on hidden Copilot prompt internals. It prepares visible local context that developers can inspect and copy.</div>
+        </section>
+
+        <div class="doc-next">
+          <a href="cli.html">CLI</a>
+          <a href="vscode-extension.html">VS Code dashboard</a>
+          <a href="spec-kit.html">Spec Kit</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

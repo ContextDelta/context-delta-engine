@@ -41,6 +41,15 @@ ask:
 
 Context Delta should help answer those questions automatically and visibly.
 
+For a Spec Kit-oriented handoff:
+
+```bash
+npm run handoff -- --format spec-kit
+```
+
+This places spec sections and task evidence before implementation files so
+the agent starts from the intended behavior.
+
 ## Initial Detection
 
 The engine should look for common spec-driven structures, including:
@@ -107,4 +116,3 @@ Excluded:
 
 This makes spec-driven work easier to trust because the spec context becomes
 visible and debuggable.
-

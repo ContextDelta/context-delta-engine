@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>What is a context packet? | Context Delta Blog</title>
+  <meta name="description" content="A context packet is a reviewable working set for AI coding agents: changed files, specs, tests, instructions, exclusions, warnings, and metrics.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/blog-context-packets.html">
+  <meta property="og:title" content="What is a context packet?">
+  <meta property="og:description" content="A reviewable working set for AI coding agents before code changes.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://contextdelta.github.io/context-delta-engine/blog-context-packets.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <article class="article-body">
+      <p class="article-meta">Context packets · Launch note</p>
+      <h1>What is a context packet?</h1>
+      <section class="doc-section">
+        <p>A context packet is the working set an AI coding agent should see before it changes code. It is smaller than the whole repo, more current than a long chat history, and more inspectable than hidden prompt assembly.</p>
+        <h2>What belongs in the packet?</h2>
+        <ul>
+          <li>Changed files and affected neighbors.</li>
+          <li>Relevant spec sections, tasks, acceptance criteria, and repo instructions.</li>
+          <li>Nearby tests and missing-test warnings.</li>
+          <li>Excluded files with reasons.</li>
+          <li>Risk, budget pressure, redaction, and token-savings metadata.</li>
+        </ul>
+        <h2>Why it helps</h2>
+        <p>When an agent makes a poor change, the question is often not whether the model is capable. It is whether the model saw the right files, current requirements, and relevant tests. A packet makes that visible.</p>
+        <div class="callout">Context Delta treats context as a reviewable artifact, not an invisible side effect of whatever files happened to be open.</div>
+      </section>
+    </article>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

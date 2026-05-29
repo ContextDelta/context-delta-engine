@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Context Delta Blog | Local-first context for AI coding agents</title>
+  <meta name="description" content="Notes on context packets, GitHub Copilot workflows, MCP, Spec Kit, and local-first observability for AI coding agents.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/blog.html">
+  <meta property="og:title" content="Context Delta Blog">
+  <meta property="og:description" content="Practical notes on making AI coding agents work from better local context.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://contextdelta.github.io/context-delta-engine/blog.html">
+  <link rel="stylesheet" href="site/styles.css">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      "name": "Context Delta Blog",
+      "url": "https://contextdelta.github.io/context-delta-engine/blog.html",
+      "description": "Notes on local-first context packets for AI coding agents."
+    }
+  </script>
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">Blog</p>
+        <h1>Notes on better context for AI coding agents.</h1>
+        <p class="lead">A small launch blog for the ideas behind Context Delta: visible packets, local-first handoff, spec-driven coding, and useful metrics.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Open source posture</strong>
+        <p>These posts are written for developers evaluating the project, not for a closed product funnel.</p>
+      </aside>
+    </section>
+
+    <section class="blog-list" aria-label="Blog posts">
+      <a class="blog-card" href="blog-context-packets.html">
+        <span>Context packets</span>
+        <h2>What is a context packet?</h2>
+        <p>A practical explanation of the packet abstraction: changed files, specs, tests, rules, exclusions, and why each item is present.</p>
+      </a>
+      <a class="blog-card" href="blog-local-first-ai-context.html">
+        <span>Local-first</span>
+        <h2>Why AI coding context should start local.</h2>
+        <p>How local packet generation keeps source visible, inspectable, and private by default while still helping teams measure quality.</p>
+      </a>
+      <a class="blog-card" href="blog-spec-driven-ai-coding.html">
+        <span>Spec-driven</span>
+        <h2>Spec-driven AI coding needs context control.</h2>
+        <p>Specs are valuable only when the agent gets the right slice at the right moment, with current tests and repo instructions attached.</p>
+      </a>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>

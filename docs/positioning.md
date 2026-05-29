@@ -98,15 +98,18 @@ The strongest demo is a before and after:
 
 ```text
 Before:
-28,000 tokens of mixed context
+~2,667 estimated baseline tokens
 old specs, random open files, long chat history
 related test missed
 
 After:
-7,800 tokens of focused context
+~1,262 focused tokens
 changed file, affected test, relevant spec section, repo rule
-72% estimated context saved
+53% estimated context reduction · 96% useful-context density
 ```
+
+These are real, reproducible figures from the bundled demo workspace
+(`npm run eval:multi`), not illustrative numbers.
 
 This is easier to understand than an architecture diagram and more memorable
 than a feature list.

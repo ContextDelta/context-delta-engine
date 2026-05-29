@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Packet-Quality Eval | Context Delta</title>
+  <meta name="description" content="Score Context Delta packets with useful-context density, impact coverage, omission rate, forbidden inclusions, and packet size.">
+  <link rel="canonical" href="https://contextdelta.github.io/context-delta-engine/eval.html">
+  <link rel="stylesheet" href="site/styles.css">
+</head>
+<body class="doc-body">
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="Context Delta home">
+      <span class="mark">CD</span>
+      <span>Context Delta</span>
+    </a>
+    <nav aria-label="Primary">
+      <a href="index.html#why">Why</a>
+      <a href="index.html#demo">Demo</a>
+      <a href="index.html#workflow">Workflow</a>
+      <a href="index.html#integrations">Integrations</a>
+      <a href="index.html#metrics">Metrics</a>
+      <a href="docs.html">Docs</a>
+      <a href="blog.html">Blog</a>
+      <a href="https://github.com/ContextDelta/context-delta-engine">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="doc-main">
+    <section class="doc-hero">
+      <div>
+        <p class="eyebrow">Packet-quality eval</p>
+        <h1>Measure whether the packet had the context the task actually needed.</h1>
+        <p class="lead">Token savings are a cost signal. Eval scores are the quality signal: useful-context density, impact coverage, omission rate, forbidden inclusions, and packet size.</p>
+      </div>
+      <aside class="doc-card">
+        <strong>Core moat</strong>
+        <p>A labeled gold set turns "good context" from a claim into something inspectable, repeatable, and hard to fake.</p>
+      </aside>
+    </section>
+
+    <section class="doc-grid">
+      <nav class="doc-nav" aria-label="Eval sections">
+        <a class="active" aria-current="true" href="#run">Run</a>
+        <a href="#gold">Gold set</a>
+        <a href="#scores">Scores</a>
+        <a href="#claim">Claims</a>
+      </nav>
+      <article class="doc-article">
+        <section id="run" class="doc-section">
+          <h2>Run the demo eval.</h2>
+          <p>Use the bundled demo workspace and labeled gold set.</p>
+          <pre class="doc-code"><code>npm run eval -- --workspace examples/demo-workspace --cases ../eval/gold-set.json</code></pre>
+          <p>Use the release-gated multi-shape suite before changing ranking or presets.</p>
+          <pre class="doc-code"><code>npm run eval:multi</code></pre>
+          <p>Reports are written locally under <code>.contextdelta/eval/</code>.</p>
+        </section>
+
+        <section id="gold" class="doc-section">
+          <h2>Label the minimum sufficient packet.</h2>
+          <p>Each case names required paths, acceptable alternates, forbidden paths, and pass criteria.</p>
+          <pre class="doc-code"><code>{
+  "id": "auth-refresh-rotation",
+  "task": "Add refresh token rotation for admin users",
+  "minimum_context": {
+    "paths": ["specs/004-admin-auth/spec.md", "src/auth/service.ts"],
+    "acceptable_paths": ["specs/004-admin-auth/tasks.md"]
+  },
+  "forbidden_paths": ["docs/legacy-oauth.md"]
+}</code></pre>
+        </section>
+
+        <section id="scores" class="doc-section">
+          <h2>Scores that survive skeptical review.</h2>
+          <ul>
+            <li><strong>Useful-context density:</strong> useful paths divided by included paths.</li>
+            <li><strong>Impact coverage:</strong> required paths included divided by required paths.</li>
+            <li><strong>Omission rate:</strong> required paths missed divided by required paths.</li>
+            <li><strong>Forbidden included:</strong> paths the packet should have avoided.</li>
+            <li><strong>Packet size:</strong> estimated packed tokens.</li>
+          </ul>
+        </section>
+
+        <section id="claim" class="doc-section">
+          <h2>Use eval before correctness claims.</h2>
+          <p>Public copy should say Context Delta makes context visible, replayable, and measurable. Narrow "better context" claims should wait for labeled eval results. Token reduction is a cost signal; eval quality is the correctness signal.</p>
+        </section>
+      </article>
+    </section>
+  </main>
+  <script src="site/site.js" defer></script>
+</body>
+</html>
