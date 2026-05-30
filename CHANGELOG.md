@@ -21,6 +21,8 @@ versioning once releases begin.
   replay, compact JSON, and full JSON.
 - Packet-quality eval harness with demo gold set, useful-context density,
   impact coverage, omission-rate, and forbidden-inclusion scoring.
+- Go service/test gold-set case (module-aware billing validation) proving
+  Go import resolution and coverage edges end to end in the eval gate.
 - AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
   with closest-file-wins ordering.
 - Source graph neighbor detection for changed source files.

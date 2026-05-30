@@ -249,13 +249,13 @@ Score packet quality against the multi-shape labeled gold set:
 npm run eval:multi
 ```
 
-On the bundled gold set (auth change, static-site review, and node-service
-fix), the current engine measures:
+On the bundled gold set (auth change, static-site review, and JavaScript,
+Python, TypeScript, and Go service/test fixes), the current engine measures:
 
 | Metric | Result |
 | --- | --- |
-| Cases passed | 3 / 3 (100%) |
-| Useful-context density | 98% average |
+| Cases passed | 6 / 6 (100%) |
+| Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
 | Whole-workspace context reduction | 78% average |
