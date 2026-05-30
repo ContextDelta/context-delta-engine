@@ -26,6 +26,10 @@ versioning once releases begin.
 - AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
   with closest-file-wins ordering.
 - Source graph neighbor detection for changed source files.
+- Content-, symbol-, and IDF-aware relevance ranking (local and deterministic,
+  no embeddings): the ranker reads file content and declared symbols (JS/TS,
+  Python, Go) and weights rare task terms higher, replacing the hardcoded
+  auth-domain keyword regex with relevance derived from the repo itself.
 - Packet approval and replay artifacts for reviewable agent handoff.
 - Local HTML report and manager summary exports.
 - MCP stdio server with packet, compact, insight, diff, handoff, eval,

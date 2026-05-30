@@ -19,6 +19,7 @@ import {
   scoreFile
 } from "./ranking.js";
 import { redactPacket } from "./redaction.js";
+import { buildRelevanceIndex } from "./relevance.js";
 import { readFileSnippet, scanWorkspace } from "./scanner.js";
 import { buildSpecKitWarnings, detectSpecKit, scopeSpecEvidence } from "./spec-kit.js";
 import { findCoveringTests, findSourceGraphNeighbors } from "./source-graph.js";
@@ -81,6 +82,13 @@ export async function buildContextPacket(options) {
     ...new Set([...extractKeywords(task), ...derivePathKeywords(changedPaths).slice(0, 12)])
   ];
 
+  // Content + symbol relevance index (local, deterministic). Built once and
+  // shared across the ranked selections so relevance reflects what files
+  // actually contain and define, not just their paths.
+  const relevanceIndex = await buildRelevanceIndex(eligibleFiles, {
+    maxChars: limits.snippetChars
+  });
+
   const changedArtifacts = await buildChangedArtifacts(
     workspaceRoot,
     eligibleFiles,
@@ -92,6 +100,7 @@ export async function buildContextPacket(options) {
 
   const rankedTests = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
     includeKinds: ["test"],
+    index: relevanceIndex,
     limit: limits.tests
   });
 
@@ -103,7 +112,7 @@ export async function buildContextPacket(options) {
   });
   const coveringTestItems = await Promise.all(
     coveringTests.map(async (covering) => {
-      const item = await fileToPacketItem(covering.file, changedPaths, keywords, limits);
+      const item = await fileToPacketItem(covering.file, changedPaths, keywords, limits, relevanceIndex);
       return {
         ...item,
         coverage_targets: covering.covers,
@@ -115,11 +124,13 @@ export async function buildContextPacket(options) {
 
   const rankedImpacted = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
     excludeKinds: ["instruction", "spec", "test"],
+    index: relevanceIndex,
     limit: limits.impacted
   }).filter((item) => !changedPaths.has(item.file.path));
 
   const rankedInstructions = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
     includeKinds: ["instruction"],
+    index: relevanceIndex,
     limit: limits.instructions
   });
 
@@ -150,7 +161,7 @@ export async function buildContextPacket(options) {
       })),
     ...coveringTestItems,
     ...(await Promise.all(
-      rankedTests.map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits))
+      rankedTests.map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex))
     ))
   ]).slice(0, limits.markdownSections + limits.tests);
 
@@ -184,7 +195,7 @@ export async function buildContextPacket(options) {
         type: "instruction_section"
       })),
     ...(await Promise.all(
-      rankedInstructions.map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits))
+      rankedInstructions.map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex))
     ))
   ]).slice(0, limits.instructions);
 
@@ -198,7 +209,7 @@ export async function buildContextPacket(options) {
     ...(await Promise.all(
       rankedImpacted
         .filter((item) => !graphNeighborPaths.has(item.file.path))
-        .map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits))
+        .map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex))
     ))
   ]).slice(0, limits.impacted);
 
@@ -400,12 +411,12 @@ function extractChangedSymbols(changedArtifacts) {
   return [...symbols].slice(0, 40);
 }
 
-async function fileToPacketItem(file, changedPaths, keywords, limits) {
+async function fileToPacketItem(file, changedPaths, keywords, limits, index = null) {
   return {
     content: await readFileSnippet(file, { maxChars: limits.snippetChars }),
     kind: file.kind,
     path: file.path,
-    reason: explainFileInclusion(file, changedPaths, keywords),
+    reason: explainFileInclusion(file, changedPaths, keywords, index),
     type: file.kind
   };
 }
