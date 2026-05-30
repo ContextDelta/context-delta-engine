@@ -32,7 +32,8 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}, toke
     : DEFAULT_CHARS_PER_TOKEN;
   const naive = estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken, tokenizerModel);
   const workspaceUpperBound = estimateWorkspaceUpperBound(files, charsPerToken);
-  // The naive baseline is the honest "before". Guard only against degenerate
+  const openFilesTokens = estimateOpenFilesBaseline(files, packetDraft, model, charsPerToken, tokenizerModel);
+  // The naive baseline is the headline "before". Guard only against degenerate
   // cases where it would dip below what we actually deliver.
   const baselineTokensEstimate = Math.max(
     naive.total,
@@ -42,14 +43,42 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}, toke
   const usefulDensity = estimateUsefulContextDensity(packetDraft);
   const tokenizerInfo = getTokenizerInfo(tokenizerModel);
 
+  // Multiple transparent baselines instead of a single number, so the savings
+  // claim cannot be dismissed as cherry-picked. They bracket the honest range
+  // and are constructed to stay monotonic (floor <= typical <= ceiling): the
+  // open-files set is a subset of the naive set, and the whole-repo set is a
+  // superset, all sharing the same chat/task allowance.
+  const chatHistoryTokens = Math.max(0, Math.round(model.chatHistoryTokens ?? 0));
+  const taskTokens = estimateTokensForText(packetDraft.intent?.task ?? "", tokenizerModel);
+  const floorTokens = Math.min(openFilesTokens, naive.total);
+  const wholeRepoTotal = Math.max(workspaceUpperBound + chatHistoryTokens + taskTokens, naive.total);
+  const baselines = {
+    open_files_only: makeBaseline(
+      floorTokens,
+      deliveredTokensEstimate,
+      "Conservative floor: a disciplined developer who shares only the changed and most recently edited files (no specs, instructions, or chat history)."
+    ),
+    naive_agent: makeBaseline(
+      naive.total,
+      deliveredTokensEstimate,
+      "Typical case (headline): an agent that also pulls full spec files, instruction files, and a chat-history allowance."
+    ),
+    whole_repo: makeBaseline(
+      wholeRepoTotal,
+      deliveredTokensEstimate,
+      "Upper bound: the entire directly-useful repository text plus the same allowance."
+    )
+  };
+
   return {
     baseline_note:
-      "Models the context a naive agent would likely pull without Context Delta: open/recent files, full spec files (not slices), instruction files, and a chat-history allowance. Wasted = this baseline minus the context Context Delta actually delivers to the agent (delivered_tokens_estimate). Delivered tokens are measured with a real tokenizer when available; the size-derived baseline is converted using chars_per_token_estimate, calibrated from this packet's own content.",
+      "Reduction is reported against several transparent baselines (see `baselines`): a conservative open-files floor, the typical naive-agent case (headline), and a whole-repo upper bound. Delivered tokens are measured with a real tokenizer when available; size-derived baselines are converted using chars_per_token_estimate, calibrated from this packet's own content.",
     baseline_strategy: model.strategy,
     baseline_tokens_estimate: baselineTokensEstimate,
     baseline_breakdown: naive.breakdown,
     baseline_counts: naive.counts,
     baseline_assumptions: naive.assumptions,
+    baselines,
     chars_per_token_estimate: Number(charsPerToken.toFixed(2)),
     context_reduction_percent: Number(
       percentReduction(baselineTokensEstimate, deliveredTokensEstimate).toFixed(1)
@@ -69,6 +98,46 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}, toke
 }
 
 const DEFAULT_CHARS_PER_TOKEN = 4;
+
+function makeBaseline(tokens, deliveredTokens, note) {
+  const tokensEstimate = Math.max(0, Math.round(tokens));
+  return {
+    tokens_estimate: tokensEstimate,
+    reduction_percent: Number(percentReduction(tokensEstimate, deliveredTokens).toFixed(1)),
+    note
+  };
+}
+
+// Conservative floor: only the changed files plus the most recently edited
+// files (the "open tabs" a careful developer would paste), with no specs,
+// instructions, or chat-history allowance. Reduction against this is the
+// smallest, most defensible claim.
+function estimateOpenFilesBaseline(files, packetDraft, model, charsPerToken, tokenizerModel) {
+  const textFiles = files.filter((file) => file.textLike && !file.tooLarge);
+  const changedPaths = new Set((packetDraft.changed_artifacts ?? []).map((artifact) => artifact.path));
+  const recent = textFiles
+    .filter((file) => ["source", "test", "doc"].includes(file.kind))
+    .sort((left, right) => right.mtimeMs - left.mtimeMs)
+    .slice(0, Math.max(0, model.openRecentFiles ?? 0));
+
+  const seen = new Set();
+  let bytes = 0;
+  for (const file of textFiles) {
+    if (changedPaths.has(file.path) && !seen.has(file.path)) {
+      seen.add(file.path);
+      bytes += file.size;
+    }
+  }
+  for (const file of recent) {
+    if (!seen.has(file.path)) {
+      seen.add(file.path);
+      bytes += file.size;
+    }
+  }
+
+  const taskTokens = estimateTokensForText(packetDraft.intent?.task ?? "", tokenizerModel);
+  return tokensFromBytes(bytes, charsPerToken) + taskTokens;
+}
 
 // Keep the calibrated ratio in a sane range so an unusual packet (e.g. mostly
 // whitespace or mostly symbols) cannot distort the baseline.

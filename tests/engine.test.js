@@ -81,6 +81,28 @@ test("a target model selects the matching tokenizer encoding", async () => {
   assert.equal(future.packet.metrics.target_model, "gpt-5.1");
 });
 
+test("metrics report a transparent, monotonic baseline spectrum", async () => {
+  const workspace = await createFixtureWorkspace();
+  const { packet } = await buildContextPacket({
+    task: "Add refresh token rotation for admin users",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+  const baselines = packet.metrics.baselines;
+
+  assert.ok(baselines.open_files_only && baselines.naive_agent && baselines.whole_repo);
+  // The spectrum must be monotonic: floor <= typical <= ceiling.
+  assert.ok(baselines.open_files_only.tokens_estimate <= baselines.naive_agent.tokens_estimate);
+  assert.ok(baselines.naive_agent.tokens_estimate <= baselines.whole_repo.tokens_estimate);
+  // Each baseline carries a human-readable assumption and a reduction figure.
+  for (const baseline of Object.values(baselines)) {
+    assert.equal(typeof baseline.note, "string");
+    assert.ok(baseline.reduction_percent >= 0 && baseline.reduction_percent <= 100);
+  }
+  // The headline reduction matches the naive-agent baseline.
+  assert.equal(packet.metrics.context_reduction_percent, baselines.naive_agent.reduction_percent);
+});
+
 test("packet metrics expose the token-count method and a calibrated ratio", async () => {
   const workspace = await createFixtureWorkspace();
   const { packet } = await buildContextPacket({
