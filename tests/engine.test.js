@@ -313,6 +313,34 @@ test("packet applies closest instruction files and source graph neighbors", asyn
   );
 });
 
+test("source graph follows transitive (multi-hop) impact with distance decay", async () => {
+  const workspace = await createFixtureWorkspace();
+  // Import chain across separate directories so same-directory scoring does not
+  // mask the transitive signal: top -> mid -> leaf.
+  await writeFile(workspace, "src/leaf/leaf.ts", "export const leaf = 1;\n");
+  await writeFile(workspace, "src/mid/mid.ts", 'import { leaf } from "../leaf/leaf";\nexport const mid = leaf + 1;\n');
+  await writeFile(workspace, "src/top/top.ts", 'import { mid } from "../mid/mid";\nexport const top = mid + 1;\n');
+
+  const scan = await scanWorkspace(workspace);
+  await writeSnapshot(workspace, scan.files);
+  await fs.appendFile(path.join(workspace, "src/leaf/leaf.ts"), "\nexport const leafTwo = 2;\n");
+
+  const { packet } = await buildContextPacket({
+    task: "Update the leaf module value",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  const mid = packet.impacted_neighbors.find((item) => item.path === "src/mid/mid.ts");
+  const top = packet.impacted_neighbors.find((item) => item.path === "src/top/top.ts");
+
+  // Direct importer is 1 hop; the importer-of-the-importer is reached at 2 hops.
+  assert.ok(mid && mid.graph_distance === 1, "direct dependent should be 1 hop");
+  assert.ok(top && top.graph_distance === 2, "transitive dependent should be 2 hops");
+  // Decay: the closer file outranks the farther one.
+  assert.ok(mid.score > top.score, "closer impact should score higher than indirect impact");
+});
+
 test("snapshot detection finds changed files without git", async () => {
   const workspace = await createFixtureWorkspace();
   const initialScan = await scanWorkspace(workspace);
