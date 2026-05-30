@@ -18,3 +18,6 @@
   whenever a new packet is written, including by the CLI or an MCP client.
 - Dashboard shows the token-count method (exact tokenizer vs estimated) and the
   resolved model/encoding.
+- Metrics, insights, diff, summary, report, drift, and setup panels now have an
+  in-place Refresh button, so new numbers appear without closing and reopening
+  the panel.

@@ -260,9 +260,12 @@ async function writeSnapshot() {
 async function showMetrics(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-  const output = await runCli(["metrics", "--workspace", workspaceRoot, "--json"]);
-  const metrics = JSON.parse(output);
-  showMetricsPanel(context, metrics);
+  openLivePanel(context, {
+    viewType: "contextDeltaMetrics",
+    title: "Context Delta Metrics",
+    load: async () =>
+      renderMetricsHtml(JSON.parse(await runCli(["metrics", "--workspace", workspaceRoot, "--json"])))
+  });
 }
 
 async function writeConfig() {
@@ -277,89 +280,58 @@ async function writeConfig() {
 async function generateReport(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-  const output = await runCli(["report", "--workspace", workspaceRoot, "--json"]);
-  const result = JSON.parse(output);
-  const reportHtml = await fs.readFile(result.report_path, "utf8");
-  const panel = vscode.window.createWebviewPanel(
-    "contextDeltaReport",
-    "Context Delta Report",
-    vscode.ViewColumn.Beside,
-    { enableScripts: false }
-  );
-  panel.webview.html = reportHtml;
-  context.subscriptions.push(panel);
+  openLivePanel(context, {
+    viewType: "contextDeltaReport",
+    title: "Context Delta Report",
+    load: async () => {
+      const result = JSON.parse(await runCli(["report", "--workspace", workspaceRoot, "--json"]));
+      return fs.readFile(result.report_path, "utf8");
+    }
+  });
   refreshDashboard();
 }
 
 async function showInsights(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-
-  try {
-    const packet = await readLatestPacket(workspaceRoot);
-    const panel = vscode.window.createWebviewPanel(
-      "contextDeltaInsights",
-      "Context Delta Insights",
-      vscode.ViewColumn.Beside,
-      { enableScripts: false }
-    );
-    panel.webview.html = renderInsightsHtml(packet);
-    context.subscriptions.push(panel);
-  } catch {
-    vscode.window.showWarningMessage("No Context Delta packet found yet.");
-  }
+  openLivePanel(context, {
+    viewType: "contextDeltaInsights",
+    title: "Context Delta Insights",
+    load: async () => renderInsightsHtml(await readLatestPacket(workspaceRoot))
+  });
 }
 
 async function showPacketDiff(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-
-  try {
-    const markdown = await runCli(["diff", "--workspace", workspaceRoot]);
-    const panel = vscode.window.createWebviewPanel(
-      "contextDeltaDiff",
-      "Context Delta Diff",
-      vscode.ViewColumn.Beside,
-      { enableScripts: false }
-    );
-    panel.webview.html = renderTextHtml("Context Delta Diff", markdown);
-    context.subscriptions.push(panel);
-  } catch (error) {
-    vscode.window.showWarningMessage(`No Context Delta diff available. ${error.message}`);
-  }
+  openLivePanel(context, {
+    viewType: "contextDeltaDiff",
+    title: "Context Delta Diff",
+    load: async () => renderTextHtml("Context Delta Diff", await runCli(["diff", "--workspace", workspaceRoot]))
+  });
 }
 
 async function generateManagerSummary(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-
-  const output = await runCli(["summary", "--workspace", workspaceRoot, "--json"]);
-  const summary = JSON.parse(output);
-  const panel = vscode.window.createWebviewPanel(
-    "contextDeltaManagerSummary",
-    "Context Delta Summary",
-    vscode.ViewColumn.Beside,
-    { enableScripts: false }
-  );
-  panel.webview.html = renderManagerSummaryHtml(summary);
-  context.subscriptions.push(panel);
+  openLivePanel(context, {
+    viewType: "contextDeltaManagerSummary",
+    title: "Context Delta Summary",
+    load: async () =>
+      renderManagerSummaryHtml(JSON.parse(await runCli(["summary", "--workspace", workspaceRoot, "--json"])))
+  });
   refreshDashboard();
-  vscode.window.showInformationMessage("Context Delta manager summary written.");
 }
 
 async function showSetup(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-
-  const markdown = await runCli(["setup", "--workspace", workspaceRoot, "--target", "vscode"]);
-  const panel = vscode.window.createWebviewPanel(
-    "contextDeltaSetup",
-    "Context Delta Setup",
-    vscode.ViewColumn.Beside,
-    { enableScripts: false }
-  );
-  panel.webview.html = renderTextHtml("Context Delta Setup", markdown);
-  context.subscriptions.push(panel);
+  openLivePanel(context, {
+    viewType: "contextDeltaSetup",
+    title: "Context Delta Setup",
+    load: async () =>
+      renderTextHtml("Context Delta Setup", await runCli(["setup", "--workspace", workspaceRoot, "--target", "vscode"]))
+  });
 }
 
 async function fixSetup(context) {
@@ -391,20 +363,11 @@ async function fixSetup(context) {
 async function showDrift(context) {
   const workspaceRoot = getWorkspaceRoot();
   if (!workspaceRoot) return;
-
-  try {
-    const markdown = await runCli(["drift", "--workspace", workspaceRoot]);
-    const panel = vscode.window.createWebviewPanel(
-      "contextDeltaDrift",
-      "Context Delta Drift",
-      vscode.ViewColumn.Beside,
-      { enableScripts: false }
-    );
-    panel.webview.html = renderTextHtml("Context Delta Drift", markdown);
-    context.subscriptions.push(panel);
-  } catch (error) {
-    vscode.window.showWarningMessage(`No Context Delta drift review available. ${error.message}`);
-  }
+  openLivePanel(context, {
+    viewType: "contextDeltaDrift",
+    title: "Context Delta Drift",
+    load: async () => renderTextHtml("Context Delta Drift", await runCli(["drift", "--workspace", workspaceRoot]))
+  });
 }
 
 async function copyLatestPacket() {
@@ -640,16 +603,52 @@ function showPacketPanel(context, packet) {
   context.subscriptions.push(panel);
 }
 
-function showMetricsPanel(context, metrics) {
-  const panel = vscode.window.createWebviewPanel(
-    "contextDeltaMetrics",
-    "Context Delta Metrics",
-    vscode.ViewColumn.Beside,
-    { enableScripts: false }
-  );
-
-  panel.webview.html = renderMetricsHtml(metrics);
+// Opens a webview panel whose content can be refreshed in place. A Refresh
+// button re-runs `load` and re-renders, so users see new numbers without
+// closing and reopening the panel.
+function openLivePanel(context, { viewType, title, column = vscode.ViewColumn.Beside, load }) {
+  const panel = vscode.window.createWebviewPanel(viewType, title, column, { enableScripts: true });
   context.subscriptions.push(panel);
+  let busy = false;
+  const update = async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      panel.webview.html = injectRefreshChrome(await load());
+    } catch (error) {
+      panel.webview.html = injectRefreshChrome(
+        renderTextHtml(title, `Could not load yet: ${error?.message ?? error}\n\nClick Refresh once the data is available.`)
+      );
+    } finally {
+      busy = false;
+    }
+  };
+  panel.webview.onDidReceiveMessage(
+    (message) => {
+      if (message?.command === "refresh") update();
+    },
+    null,
+    context.subscriptions
+  );
+  update();
+  return panel;
+}
+
+// Injects a sticky Refresh button (and the messaging bridge) into a rendered
+// HTML document so the panel can reload its data in place.
+function injectRefreshChrome(html) {
+  const bar =
+    '<div style="position:sticky;top:0;z-index:20;display:flex;justify-content:flex-end;padding:8px 12px;' +
+    "background:var(--vscode-editor-background);border-bottom:1px solid var(--vscode-panel-border,rgba(128,128,128,.25));\">" +
+    '<button onclick="cdRefresh()" title="Reload with the latest data" style="cursor:pointer;font:inherit;' +
+    "padding:4px 14px;border-radius:6px;border:1px solid var(--vscode-button-border,transparent);" +
+    "background:var(--vscode-button-background,#0e639c);color:var(--vscode-button-foreground,#fff);\">&#x21bb; Refresh</button></div>";
+  const script =
+    "<script>const cdApi=acquireVsCodeApi();function cdRefresh(){cdApi.postMessage({command:'refresh'});}</script>";
+  if (html.includes("<body>")) {
+    return html.replace("<body>", `<body>${bar}`).replace("</body>", `${script}</body>`);
+  }
+  return `${bar}${html}${script}`;
 }
 
 function renderPacketHtml(packet) {
