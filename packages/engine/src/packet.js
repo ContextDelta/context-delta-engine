@@ -9,7 +9,7 @@ import { isPathExcluded, loadConfig } from "./config.js";
 import { getGitDiffForPath, getGitState } from "./git.js";
 import { buildCompactPacketView, buildPacketInsights } from "./insights.js";
 import { buildInstructionWarnings, findApplicableInstructions } from "./instructions.js";
-import { findRelevantMarkdownSections } from "./markdown.js";
+import { findRelevantMarkdownSections, findSpecTraceLinks } from "./markdown.js";
 import { buildPacketMetrics } from "./metrics.js";
 import {
   derivePathKeywords,
@@ -127,7 +127,15 @@ export async function buildContextPacket(options) {
     limit: limits.markdownSections
   });
 
+  // Spec->code traceability: spec sections that explicitly reference the changed
+  // files or their symbols, surfaced even when task keywords don't match them.
+  const changedSymbols = extractChangedSymbols(changedArtifacts);
+  const specTraceLinks = await findSpecTraceLinks(eligibleFiles, changedPaths, changedSymbols, {
+    limit: limits.markdownSections
+  });
+
   const supportingEvidence = dedupeItems([
+    ...specTraceLinks,
     ...markdownSections
       .filter((section) => section.fileKind !== "instruction")
       .map((section) => ({
@@ -375,6 +383,21 @@ async function buildChangedArtifacts(workspaceRoot, files, changedPaths, git, li
   }
 
   return artifacts;
+}
+
+// Pulls declared identifiers (functions, classes, types, Python/Go defs) out of
+// the changed files so spec sections that reference those symbols can be traced.
+function extractChangedSymbols(changedArtifacts) {
+  const symbolRe =
+    /\b(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var|def|func)\s+([A-Za-z_$][\w$]*)/g;
+  const symbols = new Set();
+  for (const item of changedArtifacts ?? []) {
+    const content = typeof item.content === "string" ? item.content : "";
+    for (const match of content.matchAll(symbolRe)) {
+      if (match[1] && match[1].length >= 4) symbols.add(match[1]);
+    }
+  }
+  return [...symbols].slice(0, 40);
 }
 
 async function fileToPacketItem(file, changedPaths, keywords, limits) {

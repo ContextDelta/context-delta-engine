@@ -634,6 +634,33 @@ test("source graph and coverage edges work for Python imports", async () => {
   assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "python test should be a covering test");
 });
 
+test("spec-to-code traceability surfaces specs that reference changed code", async () => {
+  const workspace = await createFixtureWorkspace();
+  await writeFile(workspace, "src/billing/invoice.ts", "export function renderInvoice(id) {\n  return id;\n}\n");
+  // The spec references the changed file and symbol, but uses words the task
+  // does not, so only traceability (not keyword ranking) can surface it.
+  await writeFile(
+    workspace,
+    "specs/billing/spec.md",
+    "# Billing\n\n## Invoice rendering\n\nThe module src/billing/invoice.ts must produce a PDF. renderInvoice handles layout and totals.\n"
+  );
+
+  const scan = await scanWorkspace(workspace);
+  await writeSnapshot(workspace, scan.files);
+  await fs.appendFile(path.join(workspace, "src/billing/invoice.ts"), "\nexport function renderInvoiceV2(id) {\n  return id;\n}\n");
+
+  const { packet } = await buildContextPacket({
+    task: "harden the invoice flow",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  const trace = packet.supporting_evidence.find(
+    (item) => item.path === "specs/billing/spec.md" && /Spec traces to changed code/.test(item.reason ?? "")
+  );
+  assert.ok(trace, "spec section referencing the changed file should be traced in");
+});
+
 test("source graph resolves Go module imports and coverage", async () => {
   const workspace = await createFixtureWorkspace();
   await writeFile(workspace, "go.mod", "module example.com/app\n\ngo 1.22\n");
