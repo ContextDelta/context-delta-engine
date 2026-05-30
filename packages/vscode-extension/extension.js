@@ -830,7 +830,7 @@ function renderMetricsHtml(metrics) {
     ${metric("Avg Reduction", `${metrics.average_context_reduction_percent}%`)}
     ${metric("Useful Density", `${metrics.average_useful_context_density_percent ?? 0}%`)}
     ${metric("Avg Packet", `${metrics.average_packet_tokens_estimate} tokens`)}
-    ${metric("Expansions", metrics.packet_expansions)}
+    ${metric("Overrides", metrics.manual_overrides ?? 0)}
     ${metric("Stale Specs", metrics.stale_spec_warnings)}
     ${metric("Redactions", metrics.redactions_applied)}
     ${metric("Risk Mix", formatCounts(metrics.risk_counts))}

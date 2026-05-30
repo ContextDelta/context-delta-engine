@@ -52,6 +52,14 @@ versioning once releases begin.
 - CI workflow, issue templates, PR template, and local release validation
   scripts.
 
+### Fixed
+
+- Manual-override metric is now real: `manual_overrides_count` is derived from
+  the packet's pin/exclude controls instead of a hardcoded `0`, surfaced in the
+  metrics summary, CLI, manager report, and VS Code dashboard. The always-zero
+  "packet expansions" display (an unimplemented feature) was replaced by the
+  override count in the CLI and dashboard.
+
 ### Security
 
 - Default path exclusions for secrets and local runtime folders.

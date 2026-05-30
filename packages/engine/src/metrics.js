@@ -322,6 +322,7 @@ export function renderManagerSummaryMarkdown(managerSummary) {
     `- Low-risk packets: ${summary.low_risk_percent}%`,
     `- Over-budget packets: ${summary.over_budget_percent}%`,
     `- Redactions applied: ${summary.redactions_applied}`,
+    `- Manual overrides (pins/excludes): ${summary.manual_overrides}`,
     `- Stale spec warnings: ${summary.stale_spec_warnings}`,
     "",
     "## Risk Mix",
@@ -456,7 +457,8 @@ function createMetricsEvent(packet) {
     included_files_count: packet.summary.included_files_count,
     included_spec_units_count: packet.summary.included_spec_units_count,
     included_tests_count: packet.summary.included_tests_count,
-    manual_overrides_count: 0,
+    manual_overrides_count:
+      (packet.controls?.pinned?.length ?? 0) + (packet.controls?.excluded?.length ?? 0),
     packet_id: packet.id,
     packet_tokens_estimate: packet.metrics.packet_tokens_estimate,
     packet_expansions_count: 0,
@@ -554,6 +556,7 @@ function summarizeMetrics(events) {
     average_useful_context_density_percent:
       totalSessions > 0 ? Number((totals.usefulDensity / totalSessions).toFixed(1)) : 0,
     budget_pressure_counts: totals.budgetPressureCounts,
+    manual_overrides: totals.manualOverrides,
     packet_expansions: totals.packetExpansions,
     redactions_applied: totals.redactions,
     risk_counts: totals.riskCounts,

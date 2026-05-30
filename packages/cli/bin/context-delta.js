@@ -362,7 +362,7 @@ async function runMetrics(rawArgs) {
     `Average context reduction: ${formatPercent(summary.average_context_reduction_percent)}`
   );
   console.log(`Average packet size: ${summary.average_packet_tokens_estimate} tokens`);
-  console.log(`Packet expansions: ${summary.packet_expansions}`);
+  console.log(`Manual overrides (pins/excludes): ${summary.manual_overrides}`);
   console.log(`Stale spec warnings: ${summary.stale_spec_warnings}`);
   console.log(`Risk mix: ${formatCounts(summary.risk_counts)}`);
   console.log(`Budget mix: ${formatCounts(summary.budget_pressure_counts)}`);
