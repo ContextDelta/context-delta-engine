@@ -482,6 +482,37 @@ test("packet history and diff compare previous and current packets", async () =>
   assert.ok(outputPaths.latestDiffPath.endsWith("latest-diff.json"));
 });
 
+test("a pinned file is not also delivered as an impacted neighbor", async () => {
+  const workspace = await createFixtureWorkspace();
+  // docs/site/styles.css exists in the fixture. Pinning it AND using a task whose
+  // keywords match its path ("site"/"styles") previously caused it to land in both
+  // supporting_evidence (pinned) and impacted_neighbors (graph neighbor).
+  const { packet } = await buildContextPacket({
+    pin: ["docs/site/styles.css"],
+    task: "Review the site styles layout for responsive issues",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  const buckets = {
+    changed: packet.changed_artifacts.map((item) => item.path),
+    governing: packet.governing_constraints.map((item) => item.path),
+    supporting: packet.supporting_evidence.map((item) => item.path),
+    neighbors: packet.impacted_neighbors.map((item) => item.path)
+  };
+
+  // The pinned file is delivered exactly once, in a primary bucket, never as a neighbor.
+  const pinnedPath = "docs/site/styles.css";
+  assert.ok(buckets.supporting.includes(pinnedPath));
+  assert.ok(!buckets.neighbors.includes(pinnedPath));
+
+  // General invariant: impacted_neighbors never overlaps a primary bucket path.
+  const primaryPaths = new Set([...buckets.changed, ...buckets.governing, ...buckets.supporting]);
+  for (const neighborPath of buckets.neighbors) {
+    assert.ok(!primaryPaths.has(neighborPath), `neighbor ${neighborPath} duplicates a primary bucket`);
+  }
+});
+
 test("incremental handoff sends new context and references retained context", async () => {
   const workspace = await createFixtureWorkspace();
   const first = await buildContextPacket({

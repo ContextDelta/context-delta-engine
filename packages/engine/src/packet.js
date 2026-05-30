@@ -179,6 +179,21 @@ export async function buildContextPacket(options) {
     (item) => !changedArtifactPaths.has(item.path)
   );
 
+  // Cross-bucket dedup: impacted neighbors are the lowest-priority "maybe related"
+  // bucket, so drop any path already delivered with content in a primary bucket
+  // (changed, governing constraints, pinned, or supporting evidence). Without this,
+  // a file like a pinned stylesheet is sent to the agent twice and inflates the
+  // delivered-token estimate.
+  const higherPriorityPaths = new Set([
+    ...changedArtifacts.map((item) => item.path),
+    ...governingConstraints.map((item) => item.path),
+    ...pinnedContext.map((item) => item.path),
+    ...scopedSupportingEvidence.map((item) => item.path)
+  ]);
+  const dedupedImpactedNeighbors = impactedNeighbors.filter(
+    (item) => !higherPriorityPaths.has(item.path)
+  );
+
   const excluded = [
     ...policyExcluded.map((file) => ({
       kind: file.kind,
@@ -189,7 +204,7 @@ export async function buildContextPacket(options) {
       changedPaths,
       includedPaths: new Set([
         ...changedArtifacts.map((item) => item.path),
-        ...impactedNeighbors.map((item) => item.path),
+        ...dedupedImpactedNeighbors.map((item) => item.path),
         ...governingConstraints.map((item) => item.path),
         ...pinnedContext.map((item) => item.path),
         ...scopedSupportingEvidence.map((item) => item.path)
@@ -222,7 +237,7 @@ export async function buildContextPacket(options) {
     },
     excluded,
     governing_constraints: governingConstraints,
-    impacted_neighbors: impactedNeighbors,
+    impacted_neighbors: dedupedImpactedNeighbors,
     intent: {
       confidence: estimateIntentConfidence({
         changedArtifacts,
