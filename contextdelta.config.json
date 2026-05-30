@@ -13,17 +13,7 @@
       "docs/scaling.md",
       "docs/vision.md"
     ],
-    "pin": [
-      "docs/index.html",
-      "docs/site/styles.css",
-      "docs/site/site.js",
-      "docs/docs.html",
-      "docs/blog.html",
-      "docs/metrics.html",
-      "docs/vscode-extension.html",
-      "docs/mcp-client-setup.html",
-      "docs/eval.html"
-    ]
+    "pin": []
   },
   "limits": {
     "changed": 5,
