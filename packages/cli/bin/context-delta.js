@@ -111,6 +111,7 @@ async function runPacket(rawArgs) {
     exclude: parsed.options.exclude ?? [],
     limits: parseLimits(parsed.options),
     mode: parsed.options.mode,
+    model: parsed.options.model,
     pin: parsed.options.pin ?? [],
     task,
     updateSnapshot: !noSnapshot && !noWrite,
@@ -159,6 +160,7 @@ async function runPrepare(rawArgs) {
     exclude: parsed.options.exclude ?? [],
     limits: parseLimits(parsed.options),
     mode: parsed.options.mode,
+    model: parsed.options.model,
     pin: parsed.options.pin ?? [],
     target: "local-prepare",
     task,
@@ -785,6 +787,7 @@ function parseArgs(rawArgs) {
     if (
       [
         "--mode",
+        "--model",
         "--pin",
         "--exclude",
         "--budget",
@@ -944,7 +947,7 @@ Usage:
   context-delta prepare ["task description"] [--workspace .] [--format markdown|copilot|spec-kit]
                          [--json] [--dry-run]
   context-delta packet "task description" [--workspace .] [--json] [--compact] [--dry-run]
-                       [--mode balanced|conservative|strict] [--pin path] [--exclude path]
+                       [--mode balanced|conservative|strict] [--model gpt-4o|gpt-4|...] [--pin path] [--exclude path]
                        [--changed n] [--markdown-sections n] [--snippet-chars n] [--target-tokens n]
   context-delta scan [--workspace .] [--json]
   context-delta snapshot [--workspace .] [--json]

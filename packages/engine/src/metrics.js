@@ -19,10 +19,10 @@ export const DEFAULT_BASELINE_MODEL = {
   includeAllInstructions: true
 };
 
-export function buildPacketMetrics(packetDraft, files, baselineConfig = {}) {
+export function buildPacketMetrics(packetDraft, files, baselineConfig = {}, tokenizerModel = null) {
   const model = { ...DEFAULT_BASELINE_MODEL, ...baselineConfig };
-  const packetTokensEstimate = estimateTokensForJson(packetDraft);
-  const delivered = estimateDeliveredTokens(packetDraft);
+  const packetTokensEstimate = estimateTokensForJson(packetDraft, tokenizerModel);
+  const delivered = estimateDeliveredTokens(packetDraft, tokenizerModel);
   const deliveredTokensEstimate = delivered.tokens;
   // Calibrate bytes->tokens from this packet's own delivered content (exact
   // tokenizer counts vs. real character counts), so the size-derived baseline
@@ -30,7 +30,7 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}) {
   const charsPerToken = delivered.calibrationTokens > 0
     ? clampCharsPerToken(delivered.calibrationChars / delivered.calibrationTokens)
     : DEFAULT_CHARS_PER_TOKEN;
-  const naive = estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken);
+  const naive = estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken, tokenizerModel);
   const workspaceUpperBound = estimateWorkspaceUpperBound(files, charsPerToken);
   // The naive baseline is the honest "before". Guard only against degenerate
   // cases where it would dip below what we actually deliver.
@@ -40,7 +40,7 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}) {
   );
   const wastedTokensEstimate = Math.max(0, baselineTokensEstimate - deliveredTokensEstimate);
   const usefulDensity = estimateUsefulContextDensity(packetDraft);
-  const tokenizerInfo = getTokenizerInfo();
+  const tokenizerInfo = getTokenizerInfo(tokenizerModel);
 
   return {
     baseline_note:
@@ -58,6 +58,8 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}) {
     heuristic_useful_context_density_percent: usefulDensity.percent,
     token_count_method: tokenizerInfo.method,
     tokenizer_model: tokenizerInfo.model,
+    tokenizer_encoding: tokenizerInfo.encoding,
+    target_model: tokenizerInfo.targetModel,
     useful_items_estimate: usefulDensity.usefulItems,
     packet_tokens_estimate: packetTokensEstimate,
     wasted_tokens_estimate: wastedTokensEstimate,
@@ -77,7 +79,7 @@ function clampCharsPerToken(value) {
 
 // Tokens actually handed to the agent (included item content), as opposed to the
 // full serialized packet (which also carries audit metadata never sent to the agent).
-function estimateDeliveredTokens(packetDraft) {
+function estimateDeliveredTokens(packetDraft, tokenizerModel) {
   const included = [
     ...(packetDraft.changed_artifacts ?? []),
     ...(packetDraft.governing_constraints ?? []),
@@ -96,7 +98,7 @@ function estimateDeliveredTokens(packetDraft) {
     if (seen.has(key)) continue;
     seen.add(key);
     if (typeof item.content === "string" && item.content.length > 0) {
-      const tokens = estimateTokensForText(item.content);
+      const tokens = estimateTokensForText(item.content, tokenizerModel);
       total += tokens;
       calibrationChars += item.content.length;
       calibrationTokens += tokens;
@@ -258,7 +260,7 @@ function tokensFromBytes(bytes, charsPerToken = DEFAULT_CHARS_PER_TOKEN) {
 // Models what a naive agent (e.g. Copilot reading open tabs + whole specs) would
 // likely pull into context for this task, so "wasted tokens" reflects a realistic
 // before-state rather than the entire repository.
-function estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken = DEFAULT_CHARS_PER_TOKEN) {
+function estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken = DEFAULT_CHARS_PER_TOKEN, tokenizerModel = null) {
   const textFiles = files.filter((file) => file.textLike && !file.tooLarge);
   const changedPaths = new Set(
     (packetDraft.changed_artifacts ?? []).map((artifact) => artifact.path)
@@ -311,7 +313,7 @@ function estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken = D
   }
 
   const chatHistoryTokens = Math.max(0, Math.round(model.chatHistoryTokens ?? 0));
-  const taskTokens = estimateTokensForText(packetDraft.intent?.task ?? "");
+  const taskTokens = estimateTokensForText(packetDraft.intent?.task ?? "", tokenizerModel);
   const fileTokens =
     breakdown.changed_files_tokens +
     breakdown.full_specs_tokens +

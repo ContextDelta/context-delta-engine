@@ -1,6 +1,7 @@
 {
   "schema_version": "0.1",
   "mode": "balanced",
+  "targetModel": null,
   "controls": {
     "pin": [
       "docs/spec-driven-development.md"

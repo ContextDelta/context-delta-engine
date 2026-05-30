@@ -7,6 +7,9 @@ export const DEFAULT_CONFIG_FILE = "contextdelta.config.json";
 export const DEFAULT_CONFIG = {
   schema_version: "0.1",
   mode: "balanced",
+  // Tokenizer target model for token-count estimates. null uses the modern
+  // default (o200k_base, GPT-4o family). Set e.g. "gpt-4" for cl100k_base.
+  targetModel: null,
   controls: {
     exclude: [],
     pin: []
@@ -168,6 +171,10 @@ function normalizeConfig(config) {
 
   return {
     ...config,
+    targetModel:
+      typeof config.targetModel === "string" && config.targetModel.trim()
+        ? config.targetModel.trim()
+        : null,
     baseline: {
       ...DEFAULT_CONFIG.baseline,
       ...(config.baseline ?? {})

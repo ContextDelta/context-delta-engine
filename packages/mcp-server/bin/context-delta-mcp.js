@@ -66,6 +66,11 @@ const tools = [
           type: "string",
           enum: ["balanced", "conservative", "strict"]
         },
+        model: {
+          type: "string",
+          description:
+            "Target model for token-count estimates (e.g. \"gpt-4o\", \"gpt-4\", \"gpt-5.1\"). Selects the matching tokenizer encoding. Omit to use the modern default (o200k_base)."
+        },
         pin: {
           type: "array",
           items: { type: "string" },
@@ -144,6 +149,11 @@ const tools = [
         mode: {
           type: "string",
           enum: ["balanced", "conservative", "strict"]
+        },
+        model: {
+          type: "string",
+          description:
+            "Target model for token-count estimates (e.g. \"gpt-4o\", \"gpt-4\", \"gpt-5.1\"). Selects the matching tokenizer encoding. Omit to use the modern default (o200k_base)."
         },
         pin: {
           type: "array",
@@ -518,6 +528,7 @@ async function callTool(name, args) {
     const { packet } = await buildContextPacket({
       exclude: args.exclude ?? [],
       mode: args.mode,
+      model: args.model,
       pin: args.pin ?? [],
       target: "mcp-prepare-context",
       task,
@@ -599,6 +610,7 @@ async function callTool(name, args) {
     const { packet } = await buildContextPacket({
       exclude: args.exclude ?? [],
       mode: args.mode,
+      model: args.model,
       pin: args.pin ?? [],
       task: args.task,
       updateSnapshot: args.writeOutputs === true,

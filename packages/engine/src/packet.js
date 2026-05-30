@@ -44,6 +44,7 @@ export async function buildContextPacket(options) {
 
   const inlineConfig = {};
   if (options.mode) inlineConfig.mode = options.mode;
+  if (options.model) inlineConfig.targetModel = options.model;
   if (options.limits) inlineConfig.limits = options.limits;
   if (options.exclude?.length || options.pin?.length) {
     inlineConfig.controls = {
@@ -281,10 +282,10 @@ export async function buildContextPacket(options) {
   };
 
   packetDraft.summary = buildSummary(packetDraft);
-  packetDraft.metrics = buildPacketMetrics(packetDraft, scan.files, config.baseline);
+  packetDraft.metrics = buildPacketMetrics(packetDraft, scan.files, config.baseline, config.targetModel);
   const redacted = redactPacket(packetDraft, config).packet;
   redacted.summary = buildSummary(redacted);
-  redacted.metrics = buildPacketMetrics(redacted, scan.files, config.baseline);
+  redacted.metrics = buildPacketMetrics(redacted, scan.files, config.baseline, config.targetModel);
   redacted.budget = {
     ...redacted.budget,
     packet_tokens_estimate: redacted.metrics.packet_tokens_estimate,

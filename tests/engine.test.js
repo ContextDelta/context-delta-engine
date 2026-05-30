@@ -39,7 +39,7 @@ import {
   writeSnapshot
 } from "../packages/engine/src/index.js";
 
-import { estimateTokensForText, getTokenizerInfo } from "../packages/shared/src/index.js";
+import { estimateTokensForText, getTokenizerInfo, resolveEncoding } from "../packages/shared/src/index.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -52,6 +52,33 @@ test("token estimation reports a method and counts content positively", () => {
   assert.ok(Number.isInteger(count) && count > 0);
   // Deterministic / cache-stable.
   assert.equal(count, estimateTokensForText("function addNumbers(a, b) { return a + b; }"));
+});
+
+test("resolveEncoding maps models to encodings with a modern default", () => {
+  assert.equal(resolveEncoding(undefined), "o200k_base");
+  assert.equal(resolveEncoding("gpt-4o"), "o200k_base");
+  assert.equal(resolveEncoding("gpt-5.1"), "o200k_base");
+  assert.equal(resolveEncoding("o1-preview"), "o200k_base");
+  assert.equal(resolveEncoding("claude-3-5-sonnet"), "o200k_base");
+  assert.equal(resolveEncoding("gpt-4"), "cl100k_base");
+  assert.equal(resolveEncoding("gpt-3.5-turbo"), "cl100k_base");
+});
+
+test("a target model selects the matching tokenizer encoding", async () => {
+  const workspace = await createFixtureWorkspace();
+  const task = "Add refresh token rotation for admin users";
+
+  const fallback = await buildContextPacket({ task, updateSnapshot: false, workspaceRoot: workspace });
+  assert.equal(fallback.packet.metrics.tokenizer_encoding, "o200k_base");
+  assert.equal(fallback.packet.metrics.target_model, "default");
+
+  const classic = await buildContextPacket({ task, model: "gpt-4", updateSnapshot: false, workspaceRoot: workspace });
+  assert.equal(classic.packet.metrics.tokenizer_encoding, "cl100k_base");
+  assert.equal(classic.packet.metrics.target_model, "gpt-4");
+
+  const future = await buildContextPacket({ task, model: "gpt-5.1", updateSnapshot: false, workspaceRoot: workspace });
+  assert.equal(future.packet.metrics.tokenizer_encoding, "o200k_base");
+  assert.equal(future.packet.metrics.target_model, "gpt-5.1");
 });
 
 test("packet metrics expose the token-count method and a calibrated ratio", async () => {
