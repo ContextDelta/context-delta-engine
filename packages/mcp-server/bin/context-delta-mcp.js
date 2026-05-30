@@ -68,11 +68,15 @@ const tools = [
         },
         pin: {
           type: "array",
-          items: { type: "string" }
+          items: { type: "string" },
+          description:
+            "Workspace-relative paths to force into the packet. Accepts files (e.g. \"src/auth/service.ts\") or directories (e.g. \"docs/site\"); a directory expands to the text files under it, capped to protect the token budget."
         },
         exclude: {
           type: "array",
-          items: { type: "string" }
+          items: { type: "string" },
+          description:
+            "Workspace-relative file or directory paths to keep out of the packet (e.g. \"docs/\", \"tests/engine.test.js\")."
         }
       }
     }
@@ -143,11 +147,15 @@ const tools = [
         },
         pin: {
           type: "array",
-          items: { type: "string" }
+          items: { type: "string" },
+          description:
+            "Workspace-relative paths to force into the packet. Accepts files (e.g. \"src/auth/service.ts\") or directories (e.g. \"docs/site\"); a directory expands to the text files under it, capped to protect the token budget."
         },
         exclude: {
           type: "array",
-          items: { type: "string" }
+          items: { type: "string" },
+          description:
+            "Workspace-relative file or directory paths to keep out of the packet (e.g. \"docs/\", \"tests/engine.test.js\")."
         }
       },
       required: ["task"]

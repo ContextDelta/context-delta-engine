@@ -362,24 +362,52 @@ async function fileToPacketItem(file, changedPaths, keywords, limits) {
 async function buildPinnedContext(files, config, limits) {
   const byPath = new Map(files.map((file) => [file.path, file]));
   const pinned = [];
+  // Cap how many files a single pinned directory expands to, so pinning a large
+  // folder (e.g. "packages") cannot silently blow the token budget.
+  const pinnedDirLimit = limits.pinnedDirFiles ?? 12;
 
   for (const pinnedPath of config.controls.pin ?? []) {
     const file = byPath.get(pinnedPath);
-    if (!file) {
+    if (file) {
       pinned.push({
-        path: pinnedPath,
-        reason: "Pinned by user, but file was not found in the workspace",
-        type: "missing_pinned"
+        content: await readFileSnippet(file, { maxChars: limits.snippetChars }),
+        kind: file.kind,
+        path: file.path,
+        reason: "Pinned by user control",
+        type: "pinned"
       });
       continue;
     }
 
+    // Directory / prefix pin: agents (and people) naturally pin folders like
+    // "docs/site" or "packages". Expand the pin to the text-like files under it,
+    // sorted for stable output and capped to protect the budget.
+    const prefix = pinnedPath.endsWith("/") ? pinnedPath : `${pinnedPath}/`;
+    const underDirectory = files
+      .filter((candidate) => candidate.textLike && candidate.path.startsWith(prefix))
+      .sort((left, right) => left.path.localeCompare(right.path));
+
+    if (underDirectory.length > 0) {
+      const selected = underDirectory.slice(0, pinnedDirLimit);
+      for (const dirFile of selected) {
+        pinned.push({
+          content: await readFileSnippet(dirFile, { maxChars: limits.snippetChars }),
+          kind: dirFile.kind,
+          path: dirFile.path,
+          reason:
+            underDirectory.length > selected.length
+              ? `Pinned by user control (from pinned directory ${pinnedPath}; ${selected.length} of ${underDirectory.length} files)`
+              : `Pinned by user control (from pinned directory ${pinnedPath})`,
+          type: "pinned"
+        });
+      }
+      continue;
+    }
+
     pinned.push({
-      content: await readFileSnippet(file, { maxChars: limits.snippetChars }),
-      kind: file.kind,
-      path: file.path,
-      reason: "Pinned by user control",
-      type: "pinned"
+      path: pinnedPath,
+      reason: "Pinned by user, but no matching file or directory was found in the workspace",
+      type: "missing_pinned"
     });
   }
 

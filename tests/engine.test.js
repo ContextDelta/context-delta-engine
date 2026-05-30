@@ -482,6 +482,50 @@ test("packet history and diff compare previous and current packets", async () =>
   assert.ok(outputPaths.latestDiffPath.endsWith("latest-diff.json"));
 });
 
+test("pinning a directory expands to the files under it", async () => {
+  const workspace = await createFixtureWorkspace();
+  await writeFile(workspace, "docs/site/styles.css", ".hero { display: grid; }\n");
+  await writeFile(workspace, "docs/site/site.js", "window.cd = true;\n");
+
+  // Establish a snapshot baseline so the pinned files aren't treated as changed
+  // (changed files are surfaced as changed_artifacts, not pinned).
+  await buildContextPacket({
+    task: "baseline",
+    updateSnapshot: true,
+    workspaceRoot: workspace
+  });
+
+  const { packet } = await buildContextPacket({
+    pin: ["docs/site"],
+    task: "Review the site front-end",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  const pinned = packet.supporting_evidence.filter((item) => item.type === "pinned");
+  const pinnedPaths = pinned.map((item) => item.path);
+
+  // The directory pin resolved to real files, not a missing_pinned placeholder.
+  assert.ok(pinnedPaths.includes("docs/site/styles.css"));
+  assert.ok(pinnedPaths.includes("docs/site/site.js"));
+  assert.ok(pinned.every((item) => typeof item.content === "string"));
+  assert.ok(!packet.supporting_evidence.some((item) => item.type === "missing_pinned"));
+  assert.ok(pinned.every((item) => item.reason.includes("pinned directory docs/site")));
+
+  // A genuinely absent pin still reports as missing.
+  const { packet: missingPacket } = await buildContextPacket({
+    pin: ["this/path/does/not/exist"],
+    task: "Review the site front-end",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+  assert.ok(
+    missingPacket.supporting_evidence.some(
+      (item) => item.type === "missing_pinned" && item.path === "this/path/does/not/exist"
+    )
+  );
+});
+
 test("a pinned file is not also delivered as an impacted neighbor", async () => {
   const workspace = await createFixtureWorkspace();
   // docs/site/styles.css exists in the fixture. Pinning it AND using a task whose
