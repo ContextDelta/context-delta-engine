@@ -8,7 +8,7 @@ import { readFileSnippet } from "./scanner.js";
 const IMPORT_RE =
   /(?:\b(?:import|export)\b[^'"`;]*?\bfrom\s*|^\s*import\s*|\brequire\s*\(\s*|\bimport\s*\(\s*)["'`]([^"'`]+)["'`]/gm;
 const SYMBOL_RE =
-  /\b(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var)\s+([A-Za-z_$][\w$]*)/g;
+  /\b(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var|def)\s+([A-Za-z_$][\w$]*)/g;
 
 export async function findSourceGraphNeighbors(files, changedPaths, keywords, options = {}) {
   const limit = options.limit ?? 8;
@@ -177,7 +177,15 @@ async function indexSourceFile(file, byPath) {
   };
 }
 
+// Language-aware import resolution. Python resolves very differently from the
+// JS/TS family (dotted module paths, relative dots, __init__.py packages), so
+// dispatch by extension. Anything else falls back to the JS/TS resolver.
 function resolveImports(filePath, content, byPath) {
+  if (filePath.endsWith(".py")) return resolvePythonImports(filePath, content, byPath);
+  return resolveJsImports(filePath, content, byPath);
+}
+
+function resolveJsImports(filePath, content, byPath) {
   const imports = [];
   for (const match of content.matchAll(IMPORT_RE)) {
     const specifier = match[1];
@@ -186,6 +194,65 @@ function resolveImports(filePath, content, byPath) {
     if (resolved) imports.push(resolved);
   }
   return [...new Set(imports)];
+}
+
+// Resolves intra-repo Python imports. Relative imports (from .mod / from ..pkg)
+// resolve against the file's package; absolute imports (import a.b / from a.b
+// import c) are tried from the repo root and a common `src/` layout. Anything
+// that doesn't resolve to a file already in the repo (stdlib, third-party) is
+// dropped automatically because byPath only contains repo files.
+const PY_FROM_RE = /^[ \t]*from[ \t]+(\.*)([\w.]*)[ \t]+import[ \t]+(.+)$/gm;
+const PY_IMPORT_RE = /^[ \t]*import[ \t]+([\w. ,]+)$/gm;
+
+function resolvePythonImports(filePath, content, byPath) {
+  const fileDir = path.posix.dirname(filePath);
+  const resolved = new Set();
+
+  const tryAdd = (baseDir, dotted) => {
+    const relative = dotted.split(".").filter(Boolean).join("/");
+    const target = relative ? path.posix.normalize(path.posix.join(baseDir, relative)) : baseDir;
+    for (const candidate of [`${target}.py`, `${target}/__init__.py`]) {
+      if (byPath.has(candidate)) resolved.add(candidate);
+    }
+  };
+
+  for (const match of content.matchAll(PY_FROM_RE)) {
+    const dots = match[1] ?? "";
+    const moduleName = match[2] ?? "";
+    const importedNames = (match[3] ?? "")
+      .replace(/[()\\]/g, " ")
+      .split(",")
+      .map((name) => name.trim().split(/\s+as\s+/)[0].trim())
+      .filter((name) => name && name !== "*");
+
+    if (dots) {
+      let baseDir = fileDir;
+      for (let level = 1; level < dots.length; level += 1) baseDir = path.posix.dirname(baseDir);
+      if (moduleName) {
+        tryAdd(baseDir, moduleName);
+      } else {
+        for (const name of importedNames) tryAdd(baseDir, name);
+      }
+    } else if (moduleName) {
+      tryAdd("", moduleName);
+      tryAdd("src", moduleName);
+      for (const name of importedNames) {
+        tryAdd("", `${moduleName}.${name}`);
+        tryAdd("src", `${moduleName}.${name}`);
+      }
+    }
+  }
+
+  for (const match of content.matchAll(PY_IMPORT_RE)) {
+    for (const part of match[1].split(",")) {
+      const moduleName = part.trim().split(/\s+as\s+/)[0].trim();
+      if (!moduleName) continue;
+      tryAdd("", moduleName);
+      tryAdd("src", moduleName);
+    }
+  }
+
+  return [...resolved];
 }
 
 const RESOLVE_EXTENSIONS = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts", ".vue", ".svelte", ".json"];

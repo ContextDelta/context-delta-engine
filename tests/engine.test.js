@@ -604,6 +604,36 @@ test("coverage edges surface importing tests and resolve re-exports", async () =
   );
 });
 
+test("source graph and coverage edges work for Python imports", async () => {
+  const workspace = await createFixtureWorkspace();
+  await writeFile(workspace, "app/__init__.py", "");
+  await writeFile(workspace, "app/auth/__init__.py", "");
+  await writeFile(workspace, "app/auth/service.py", "def login():\n    return True\n");
+  // Relative import (from .service) — resolved against the file's package.
+  await writeFile(workspace, "app/auth/handler.py", "from .service import login\n\ndef handle():\n    return login()\n");
+  // Absolute intra-repo import (from app.auth.service) — resolved from repo root.
+  await writeFile(workspace, "app/main.py", "from app.auth.service import login\n\ndef run():\n    return login()\n");
+  // pytest-style test (test_*.py) importing the changed module.
+  await writeFile(workspace, "tests/test_service.py", "from app.auth.service import login\n\ndef test_login():\n    assert login() is True\n");
+
+  const scan = await scanWorkspace(workspace);
+  assert.equal(scan.files.find((file) => file.path === "tests/test_service.py")?.kind, "test");
+  await writeSnapshot(workspace, scan.files);
+  await fs.appendFile(path.join(workspace, "app/auth/service.py"), "\ndef logout():\n    return True\n");
+
+  const { packet } = await buildContextPacket({
+    task: "update auth service",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  const neighbors = packet.impacted_neighbors.map((item) => item.path);
+  assert.ok(neighbors.includes("app/auth/handler.py"), "relative python import should be a neighbor");
+  assert.ok(neighbors.includes("app/main.py"), "absolute python import should be a neighbor");
+  const coveringTest = packet.supporting_evidence.find((item) => item.path === "tests/test_service.py");
+  assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "python test should be a covering test");
+});
+
 test("packet history and diff compare previous and current packets", async () => {
   const workspace = await createFixtureWorkspace();
   const first = await buildContextPacket({

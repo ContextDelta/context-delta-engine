@@ -122,6 +122,8 @@ function isTestFile(lower, basename) {
     basename.includes(".test.") ||
     basename.includes(".spec.") ||
     basename.endsWith("_test.go") ||
+    basename.endsWith("_test.py") ||
+    (basename.startsWith("test_") && basename.endsWith(".py")) ||
     basename.endsWith("test.py") ||
     basename.endsWith("tests.py")
   );
