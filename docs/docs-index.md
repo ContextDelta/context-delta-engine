@@ -59,6 +59,7 @@ Start with the [README](../README.md), then read:
 - [Release readiness](release.md)
 - [VS Code extension](vscode-extension.md)
 - [MCP client setup](mcp-client-setup.md)
+- [MCP multi-host conformance](mcp-conformance.md)
 - [Overnight build plan](overnight-build-plan.md)
 - [Demo script](demo-script.md)
 - [Known limitations](known-limitations.md)

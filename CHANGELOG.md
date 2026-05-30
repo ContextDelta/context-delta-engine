@@ -30,6 +30,11 @@ versioning once releases begin.
 - Local HTML report and manager summary exports.
 - MCP stdio server with packet, compact, insight, diff, handoff, eval,
   approval, replay, summary, report, scan, and metrics tools/resources.
+- MCP protocol-version negotiation, `ping`, and clean `resources/templates/list`
+  / `prompts/list` connect-time probes; tool runtime errors now return
+  `isError` results and protocol errors use `-32601` / `-32700` codes.
+- Automated multi-host MCP conformance harness (`npm run mcp:conformance`,
+  wired into `release:check`) and a published host conformance contract.
 - VS Code extension shell with activity bar dashboard, packet view, insight
   view, diff view, manager summary view, handoff copy, and packet item actions.
 - GitHub Pages landing page, supporting static docs, and launch preview

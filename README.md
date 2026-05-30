@@ -522,6 +522,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [VS Code extension](docs/vscode-extension.md)
 - [MCP integration](docs/mcp.md)
 - [MCP client setup](docs/mcp-client-setup.md)
+- [MCP multi-host conformance](docs/mcp-conformance.md)
 - [User experience](docs/user-experience.md)
 - [Metrics](docs/metrics.md)
 - [Launch checklist](docs/launch-checklist.md)

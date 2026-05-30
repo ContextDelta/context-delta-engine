@@ -88,15 +88,24 @@ returned handoff as your focused context.
 ```
 
 The server currently implements the core JSON-RPC methods needed for an MCP
-tool surface:
+tool surface, plus the lifecycle and probe methods real hosts call on connect:
 
 ```text
-initialize
+initialize            (with protocol-version negotiation)
+ping                  (liveness)
 tools/list
 tools/call
 resources/list
 resources/read
+resources/templates/list   (clean no-op probe)
+prompts/list               (clean no-op probe)
 ```
+
+Tool runtime errors are returned inside the result as `isError: true` (so the
+agent can recover), while protocol failures use JSON-RPC error codes
+(`-32601` method not found, `-32700` parse error). The full contract and the
+automated harness that proves it across hosts are in
+[mcp-conformance.md](mcp-conformance.md); run it with `npm run mcp:conformance`.
 
 Current resources:
 

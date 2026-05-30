@@ -8,8 +8,9 @@ product.
 - Ranking is heuristic, not embedding or LSP backed yet.
 - Symbol relationships are not deeply parsed yet.
 - VS Code extension is not packaged for marketplace install.
-- MCP server has been smoke-tested locally, but not yet validated in multiple
-  real clients.
+- MCP server passes an automated multi-host conformance contract over the wire
+  (`npm run mcp:conformance`), but per-host UX still needs a live walkthrough in
+  each real client (see [mcp-conformance.md](mcp-conformance.md)).
 - Token counts are estimates.
 - HTML reports are local files, not hosted dashboards.
 - Packet diff and replay prompt exist, but richer replay comparison UI is still
