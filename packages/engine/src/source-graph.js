@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { estimateTokensForText } from "../../shared/src/index.js";
 import { readFileSnippet } from "./scanner.js";
@@ -20,10 +21,11 @@ export async function findSourceGraphNeighbors(files, changedPaths, keywords, op
   const maxHops = Math.max(1, options.maxHops ?? 2);
   const sourceFiles = files.filter((file) => file.kind === "source" && file.textLike && !file.tooLarge);
   const byPath = new Map(sourceFiles.map((file) => [file.path, file]));
+  const goModule = await readGoModulePath(files);
   const indexed = new Map();
 
   for (const file of sourceFiles) {
-    indexed.set(file.path, await indexSourceFile(file, byPath));
+    indexed.set(file.path, await indexSourceFile(file, byPath, { goModule }));
   }
 
   // Build the directed import graph and its reverse (dependents).
@@ -151,11 +153,12 @@ export async function findCoveringTests(files, targetPaths, options = {}) {
   const eligible = files.filter((file) => file.textLike && !file.tooLarge);
   const byPath = new Map(eligible.map((file) => [file.path, file]));
   const testFiles = eligible.filter((file) => file.kind === "test");
+  const goModule = await readGoModulePath(files);
   const covering = [];
 
   for (const test of testFiles) {
     const content = await readFileSnippet(test, { maxChars: options.indexChars ?? 40_000 });
-    const imports = resolveImports(test.path, content, byPath);
+    const imports = resolveImports(test.path, content, byPath, { goModule });
     const covers = imports.filter((importPath) => targets.has(importPath));
     if (covers.length === 0) continue;
     covering.push({
@@ -169,19 +172,68 @@ export async function findCoveringTests(files, targetPaths, options = {}) {
   return covering.sort((left, right) => right.score - left.score);
 }
 
-async function indexSourceFile(file, byPath) {
+async function indexSourceFile(file, byPath, context = {}) {
   const content = await readFileSnippet(file, { maxChars: 40_000 });
   return {
-    imports: resolveImports(file.path, content, byPath),
+    imports: resolveImports(file.path, content, byPath, context),
     symbols: extractSymbols(content)
   };
+}
+
+// Reads the module path from a go.mod, if the workspace has one. Go imports are
+// fully-qualified package paths prefixed by this module path; everything else
+// (stdlib, third-party) is dropped because it never resolves to a repo file.
+async function readGoModulePath(files) {
+  const goMod = files.find((file) => file.path === "go.mod" || file.path.endsWith("/go.mod"));
+  if (!goMod?.absolutePath) return null;
+  try {
+    const content = await fs.readFile(goMod.absolutePath, "utf8");
+    const match = content.match(/^\s*module\s+(\S+)/m);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+// Resolves an intra-repo Go import to the .go files in the target package
+// directory (a Go package is a directory of files, not a single file).
+function resolveGoImports(content, byPath, goModule) {
+  if (!goModule) return [];
+  const prefix = `${goModule}/`;
+  const specifiers = [];
+  for (const match of content.matchAll(/import\s+(?:\(([\s\S]*?)\)|"([^"]+)")/g)) {
+    if (match[2]) specifiers.push(match[2]);
+    if (match[1]) {
+      for (const line of match[1].split("\n")) {
+        const single = line.match(/"([^"]+)"/);
+        if (single) specifiers.push(single[1]);
+      }
+    }
+  }
+
+  const resolved = new Set();
+  for (const specifier of specifiers) {
+    if (!specifier.startsWith(prefix)) continue;
+    const packageDir = specifier.slice(prefix.length);
+    for (const candidate of byPath.keys()) {
+      if (
+        candidate.endsWith(".go") &&
+        candidate.startsWith(`${packageDir}/`) &&
+        !candidate.slice(packageDir.length + 1).includes("/")
+      ) {
+        resolved.add(candidate);
+      }
+    }
+  }
+  return [...resolved];
 }
 
 // Language-aware import resolution. Python resolves very differently from the
 // JS/TS family (dotted module paths, relative dots, __init__.py packages), so
 // dispatch by extension. Anything else falls back to the JS/TS resolver.
-function resolveImports(filePath, content, byPath) {
+function resolveImports(filePath, content, byPath, context = {}) {
   if (filePath.endsWith(".py")) return resolvePythonImports(filePath, content, byPath);
+  if (filePath.endsWith(".go")) return resolveGoImports(content, byPath, context.goModule);
   return resolveJsImports(filePath, content, byPath);
 }
 

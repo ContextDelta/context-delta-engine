@@ -634,6 +634,41 @@ test("source graph and coverage edges work for Python imports", async () => {
   assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "python test should be a covering test");
 });
 
+test("source graph resolves Go module imports and coverage", async () => {
+  const workspace = await createFixtureWorkspace();
+  await writeFile(workspace, "go.mod", "module example.com/app\n\ngo 1.22\n");
+  await writeFile(workspace, "pkg/auth/service.go", "package auth\n\nfunc Login(user string) bool {\n\treturn user != \"\"\n}\n");
+  // Consumer imports the auth package via its fully-qualified module path.
+  await writeFile(
+    workspace,
+    "cmd/main.go",
+    'package main\n\nimport (\n\t"fmt"\n\t"example.com/app/pkg/auth"\n)\n\nfunc main() {\n\tfmt.Println(auth.Login("admin"))\n}\n'
+  );
+  // External test package imports the package under test (coverage via import).
+  await writeFile(
+    workspace,
+    "pkg/auth/service_ext_test.go",
+    'package auth_test\n\nimport (\n\t"testing"\n\t"example.com/app/pkg/auth"\n)\n\nfunc TestLogin(t *testing.T) {\n\tif !auth.Login("x") {\n\t\tt.Fail()\n\t}\n}\n'
+  );
+
+  const scan = await scanWorkspace(workspace);
+  await writeSnapshot(workspace, scan.files);
+  await fs.appendFile(path.join(workspace, "pkg/auth/service.go"), "\nfunc Logout() bool { return true }\n");
+
+  const { packet } = await buildContextPacket({
+    task: "update auth login",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  assert.ok(
+    packet.impacted_neighbors.some((item) => item.path === "cmd/main.go"),
+    "go module import should resolve as a neighbor"
+  );
+  const coveringTest = packet.supporting_evidence.find((item) => item.path === "pkg/auth/service_ext_test.go");
+  assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "go external test should be a covering test");
+});
+
 test("packet history and diff compare previous and current packets", async () => {
   const workspace = await createFixtureWorkspace();
   const first = await buildContextPacket({
