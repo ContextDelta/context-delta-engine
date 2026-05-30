@@ -634,6 +634,49 @@ test("source graph and coverage edges work for Python imports", async () => {
   assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "python test should be a covering test");
 });
 
+test("redaction corpus: every secret type is redacted and secret files excluded", async () => {
+  const workspace = await createFixtureWorkspace();
+  await writeFile(
+    workspace,
+    "src/config/secrets.ts",
+    [
+      'export const openaiKey = "sk-abcdefGHIJKLMNOP1234567890";',
+      "// legacy env dump:",
+      "// password=hunter2supersecret",
+      "// api_key=ak_live_0987654321zyxwvut",
+      "const pem = `-----BEGIN RSA PRIVATE KEY-----",
+      "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Q",
+      "-----END RSA PRIVATE KEY-----`;"
+    ].join("\n") + "\n"
+  );
+  // Policy must exclude these whole files regardless of content.
+  await writeFile(workspace, ".env", "OPENAI_API_KEY=sk-shouldnotappear1234567890abcd\n");
+  await writeFile(workspace, "keys/server.pem", "-----BEGIN PRIVATE KEY-----\nABC\n-----END PRIVATE KEY-----\n");
+
+  const { packet } = await buildContextPacket({
+    task: "wire up the secrets config module",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+  const serialized = JSON.stringify(packet);
+
+  // No raw secret value ever appears in the packet.
+  assert.ok(!serialized.includes("sk-abcdefGHIJKLMNOP1234567890"));
+  assert.ok(!serialized.includes("hunter2supersecret"));
+  assert.ok(!serialized.includes("ak_live_0987654321zyxwvut"));
+  assert.ok(!serialized.includes("MIIBOgIBAAJBAKj34"));
+
+  // Every default pattern fires.
+  assert.ok(serialized.includes("[REDACTED:openai_api_key]"));
+  assert.ok(serialized.includes("[REDACTED:generic_assignment_secret]"));
+  assert.ok(serialized.includes("[REDACTED:private_key_block]"));
+  assert.ok(packet.security.redactions_applied >= 3);
+
+  // Policy-excluded files (.env, *.pem) never enter the packet.
+  assert.ok(!packet.changed_artifacts.some((item) => item.path === ".env"));
+  assert.ok(!serialized.includes("sk-shouldnotappear1234567890abcd"));
+});
+
 test("engine degrades gracefully on cyclic imports, empty repos, and bad config", async () => {
   // Cyclic imports must not hang the graph traversal.
   const cyclic = await createFixtureWorkspace();
