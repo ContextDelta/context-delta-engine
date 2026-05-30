@@ -39,7 +39,38 @@ import {
   writeSnapshot
 } from "../packages/engine/src/index.js";
 
+import { estimateTokensForText, getTokenizerInfo } from "../packages/shared/src/index.js";
+
 const execFileAsync = promisify(execFile);
+
+test("token estimation reports a method and counts content positively", () => {
+  const info = getTokenizerInfo();
+  assert.ok(["exact_tokenizer", "heuristic"].includes(info.method));
+  assert.equal(estimateTokensForText(""), 0);
+  assert.equal(estimateTokensForText(null), 0);
+  const count = estimateTokensForText("function addNumbers(a, b) { return a + b; }");
+  assert.ok(Number.isInteger(count) && count > 0);
+  // Deterministic / cache-stable.
+  assert.equal(count, estimateTokensForText("function addNumbers(a, b) { return a + b; }"));
+});
+
+test("packet metrics expose the token-count method and a calibrated ratio", async () => {
+  const workspace = await createFixtureWorkspace();
+  const { packet } = await buildContextPacket({
+    task: "Add refresh token rotation for admin users",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+  const m = packet.metrics;
+
+  assert.ok(["exact_tokenizer", "heuristic"].includes(m.token_count_method));
+  assert.equal(typeof m.tokenizer_model, "string");
+  // Calibration stays in the clamped sane range.
+  assert.ok(m.chars_per_token_estimate >= 2.5 && m.chars_per_token_estimate <= 6);
+  // Delivered and baseline remain consistent after the tokenizer change.
+  assert.ok(m.baseline_tokens_estimate >= m.delivered_tokens_estimate);
+  assert.ok(m.tokens_saved_estimate >= 0);
+});
 
 test("scanner classifies specs, instructions, tests, and source files", async () => {
   const workspace = await createFixtureWorkspace();

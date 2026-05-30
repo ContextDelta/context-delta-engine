@@ -4,6 +4,7 @@ import {
   METRICS_SCHEMA_VERSION,
   estimateTokensForJson,
   estimateTokensForText,
+  getTokenizerInfo,
   nowIso,
   percentReduction
 } from "../../shared/src/index.js";
@@ -21,9 +22,16 @@ export const DEFAULT_BASELINE_MODEL = {
 export function buildPacketMetrics(packetDraft, files, baselineConfig = {}) {
   const model = { ...DEFAULT_BASELINE_MODEL, ...baselineConfig };
   const packetTokensEstimate = estimateTokensForJson(packetDraft);
-  const deliveredTokensEstimate = estimateDeliveredTokens(packetDraft);
-  const naive = estimateNaiveAgentBaseline(files, packetDraft, model);
-  const workspaceUpperBound = estimateWorkspaceUpperBound(files);
+  const delivered = estimateDeliveredTokens(packetDraft);
+  const deliveredTokensEstimate = delivered.tokens;
+  // Calibrate bytes->tokens from this packet's own delivered content (exact
+  // tokenizer counts vs. real character counts), so the size-derived baseline
+  // uses the same measure as the delivered count instead of a fixed ratio.
+  const charsPerToken = delivered.calibrationTokens > 0
+    ? clampCharsPerToken(delivered.calibrationChars / delivered.calibrationTokens)
+    : DEFAULT_CHARS_PER_TOKEN;
+  const naive = estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken);
+  const workspaceUpperBound = estimateWorkspaceUpperBound(files, charsPerToken);
   // The naive baseline is the honest "before". Guard only against degenerate
   // cases where it would dip below what we actually deliver.
   const baselineTokensEstimate = Math.max(
@@ -32,26 +40,39 @@ export function buildPacketMetrics(packetDraft, files, baselineConfig = {}) {
   );
   const wastedTokensEstimate = Math.max(0, baselineTokensEstimate - deliveredTokensEstimate);
   const usefulDensity = estimateUsefulContextDensity(packetDraft);
+  const tokenizerInfo = getTokenizerInfo();
 
   return {
     baseline_note:
-      "Models the context a naive agent would likely pull without Context Delta: open/recent files, full spec files (not slices), instruction files, and a chat-history allowance. Wasted = this baseline minus the context Context Delta actually delivers to the agent (delivered_tokens_estimate). Counts are byte-based estimates, not exact tokenizer counts.",
+      "Models the context a naive agent would likely pull without Context Delta: open/recent files, full spec files (not slices), instruction files, and a chat-history allowance. Wasted = this baseline minus the context Context Delta actually delivers to the agent (delivered_tokens_estimate). Delivered tokens are measured with a real tokenizer when available; the size-derived baseline is converted using chars_per_token_estimate, calibrated from this packet's own content.",
     baseline_strategy: model.strategy,
     baseline_tokens_estimate: baselineTokensEstimate,
     baseline_breakdown: naive.breakdown,
     baseline_counts: naive.counts,
     baseline_assumptions: naive.assumptions,
+    chars_per_token_estimate: Number(charsPerToken.toFixed(2)),
     context_reduction_percent: Number(
       percentReduction(baselineTokensEstimate, deliveredTokensEstimate).toFixed(1)
     ),
     delivered_tokens_estimate: deliveredTokensEstimate,
     heuristic_useful_context_density_percent: usefulDensity.percent,
+    token_count_method: tokenizerInfo.method,
+    tokenizer_model: tokenizerInfo.model,
     useful_items_estimate: usefulDensity.usefulItems,
     packet_tokens_estimate: packetTokensEstimate,
     wasted_tokens_estimate: wastedTokensEstimate,
     tokens_saved_estimate: wastedTokensEstimate,
     workspace_upper_bound_tokens_estimate: workspaceUpperBound
   };
+}
+
+const DEFAULT_CHARS_PER_TOKEN = 4;
+
+// Keep the calibrated ratio in a sane range so an unusual packet (e.g. mostly
+// whitespace or mostly symbols) cannot distort the baseline.
+function clampCharsPerToken(value) {
+  if (!Number.isFinite(value) || value <= 0) return DEFAULT_CHARS_PER_TOKEN;
+  return Math.min(6, Math.max(2.5, value));
 }
 
 // Tokens actually handed to the agent (included item content), as opposed to the
@@ -65,15 +86,25 @@ function estimateDeliveredTokens(packetDraft) {
   ];
   const seen = new Set();
   let total = 0;
+  // Calibration accumulators only count items where we have the real text, so
+  // chars_per_token reflects actual content rather than items that only carry a
+  // precomputed estimate.
+  let calibrationChars = 0;
+  let calibrationTokens = 0;
   for (const item of included) {
     const key = [item.type ?? item.kind ?? "item", item.path ?? "", item.heading ?? item.line_start ?? ""].join(":");
     if (seen.has(key)) continue;
     seen.add(key);
-    total += Number.isFinite(item.tokens_estimate)
-      ? item.tokens_estimate
-      : estimateTokensForText(item.content ?? "");
+    if (typeof item.content === "string" && item.content.length > 0) {
+      const tokens = estimateTokensForText(item.content);
+      total += tokens;
+      calibrationChars += item.content.length;
+      calibrationTokens += tokens;
+    } else if (Number.isFinite(item.tokens_estimate)) {
+      total += item.tokens_estimate;
+    }
   }
-  return total;
+  return { tokens: total, calibrationChars, calibrationTokens };
 }
 
 export async function writePacketAndMetrics(workspaceRoot, packet) {
@@ -219,14 +250,15 @@ export function renderManagerSummaryMarkdown(managerSummary) {
   ].join("\n");
 }
 
-function tokensFromBytes(bytes) {
-  return Math.ceil(Math.max(0, bytes) / 4);
+function tokensFromBytes(bytes, charsPerToken = DEFAULT_CHARS_PER_TOKEN) {
+  const ratio = charsPerToken > 0 ? charsPerToken : DEFAULT_CHARS_PER_TOKEN;
+  return Math.ceil(Math.max(0, bytes) / ratio);
 }
 
 // Models what a naive agent (e.g. Copilot reading open tabs + whole specs) would
 // likely pull into context for this task, so "wasted tokens" reflects a realistic
 // before-state rather than the entire repository.
-function estimateNaiveAgentBaseline(files, packetDraft, model) {
+function estimateNaiveAgentBaseline(files, packetDraft, model, charsPerToken = DEFAULT_CHARS_PER_TOKEN) {
   const textFiles = files.filter((file) => file.textLike && !file.tooLarge);
   const changedPaths = new Set(
     (packetDraft.changed_artifacts ?? []).map((artifact) => artifact.path)
@@ -256,7 +288,7 @@ function estimateNaiveAgentBaseline(files, packetDraft, model) {
   function take(file, tokensKey, countKey) {
     if (seen.has(file.path)) return;
     seen.add(file.path);
-    breakdown[tokensKey] += tokensFromBytes(file.size);
+    breakdown[tokensKey] += tokensFromBytes(file.size, charsPerToken);
     counts[countKey] += 1;
   }
 
@@ -306,13 +338,13 @@ function estimateNaiveAgentBaseline(files, packetDraft, model) {
 
 // Retained as an explicitly-labeled upper bound (all directly-useful repo text),
 // not a realistic before-state. Kept for comparison and backward compatibility.
-function estimateWorkspaceUpperBound(files) {
+function estimateWorkspaceUpperBound(files, charsPerToken = DEFAULT_CHARS_PER_TOKEN) {
   const directlyUsefulKinds = new Set(["doc", "instruction", "source", "spec", "test"]);
   const candidateBytes = files
     .filter((file) => directlyUsefulKinds.has(file.kind) && file.textLike && !file.tooLarge)
     .reduce((total, file) => total + file.size, 0);
 
-  return Math.max(tokensFromBytes(candidateBytes), 1);
+  return Math.max(tokensFromBytes(candidateBytes, charsPerToken), 1);
 }
 
 async function safeReadPacket(packetPath) {
