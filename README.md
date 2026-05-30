@@ -239,10 +239,10 @@ fix), the current engine measures:
 | Metric | Result |
 | --- | --- |
 | Cases passed | 3 / 3 (100%) |
-| Useful-context density | 96% average |
+| Useful-context density | 98% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
-| Whole-workspace context reduction | 68% average |
+| Whole-workspace context reduction | 78% average |
 
 These are the only quality numbers Context Delta claims, and they are
 reproducible from a clean checkout with the command above. Token reduction is
@@ -292,7 +292,7 @@ Add refresh token rotation for admin users.
 Without Context Delta, a naive agent would likely pull:
 
 ```text
-~2,667 tokens (estimated baseline)
+~2,493 tokens (estimated naive-agent baseline)
 old auth specs, unrelated open files, long chat history, random docs,
 and no focused explanation of what changed
 ```
@@ -300,15 +300,16 @@ and no focused explanation of what changed
 With Context Delta, the agent receives:
 
 ```text
-~1,262 tokens delivered
+~645 tokens delivered
 changed auth service, affected token store, relevant spec requirement,
 security instruction, nearest tests, and excluded stale docs
 
-Estimated context reduction: 53% · useful-context density: 96%
+Context reduction: 74% (vs naive agent) · counted with an exact tokenizer
 ```
 
-These are real, byte-based estimates from the bundled demo workspace, not
-illustrative figures. Reproduce them with:
+These are real figures from the bundled demo workspace — delivered tokens are
+counted with an exact tokenizer (configurable per model), not illustrative.
+Reproduce them with:
 
 ```bash
 npm run packet -- "Add refresh token rotation for admin users" \

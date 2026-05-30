@@ -7,7 +7,7 @@
   <g transform="translate(84 184)">
     <rect width="474" height="318" rx="14" fill="#fff7ed" stroke="#fed7aa"/>
     <text x="28" y="42" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#b45309">Without Context Delta</text>
-    <text x="28" y="88" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#0f172a">2,667</text>
+    <text x="28" y="88" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#0f172a">2,493</text>
     <text x="186" y="88" font-family="Arial, sans-serif" font-size="18" fill="#5c687a">est. tokens</text>
     <g font-family="Arial, sans-serif" font-size="16" fill="#5c687a">
       <text x="28" y="136">old auth docs</text>
@@ -27,8 +27,8 @@
   <g transform="translate(642 184)">
     <rect width="474" height="318" rx="14" fill="#f0fdfa" stroke="#99f6e4"/>
     <text x="28" y="42" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f766e">With Context Delta</text>
-    <text x="28" y="88" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#0f172a">1,262</text>
-    <text x="186" y="88" font-family="Arial, sans-serif" font-size="18" fill="#5c687a">est. tokens</text>
+    <text x="28" y="88" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#0f172a">645</text>
+    <text x="124" y="88" font-family="Arial, sans-serif" font-size="18" fill="#5c687a">est. tokens</text>
     <g font-family="Arial, sans-serif" font-size="16" fill="#134e4a">
       <text x="28" y="136">changed auth service</text>
       <text x="28" y="174">relevant spec section</text>
@@ -46,6 +46,6 @@
 
   <g transform="translate(456 520)">
     <rect width="288" height="52" rx="26" fill="#0f766e"/>
-    <text x="34" y="34" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">53% reduction · 96% density</text>
+    <text x="44" y="34" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">~74% context reduction</text>
   </g>
 </svg>

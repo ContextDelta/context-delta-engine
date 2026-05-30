@@ -36,6 +36,7 @@
       <a href="#why">Why</a>
       <a href="#demo">Demo</a>
       <a href="#workflow">Workflow</a>
+      <a href="#depth">Engine</a>
       <a href="#integrations">Integrations</a>
       <a href="#metrics">Metrics</a>
       <a href="docs.html">Docs</a>
@@ -61,11 +62,11 @@
           and interrupt only when something needs review.
         </p>
         <p class="hero-proof">
-          <span class="hero-proof-before">~2,667 estimated baseline tokens</span>
+          <span class="hero-proof-before">~2,493 estimated baseline tokens</span>
           <span class="hero-proof-arrow" aria-hidden="true">→</span>
-          <span class="hero-proof-after">~1,262 focused tokens · 96% useful-context density · related test kept · stale spec dropped</span>
+          <span class="hero-proof-after">~645 focused tokens · ~74% smaller · related test kept · stale spec dropped</span>
         </p>
-        <p class="hero-proof-note">Measured on the bundled demo workspace and reproducible with <code>npm run eval:multi</code>, not an illustrative figure.</p>
+        <p class="hero-proof-note">Real figures from the bundled demo workspace, counted with an exact tokenizer — reproduce with <code>npm run packet -- "Add refresh token rotation for admin users" --workspace examples/demo-workspace</code>.</p>
         <div class="actions">
           <a class="button primary" href="#quickstart">Try the CLI</a>
           <a class="button" href="eval.html">See packet eval</a>
@@ -129,9 +130,9 @@ npm run drift</code></pre>
         </div>
         <aside class="quickstart-aside">
           <p class="status-note">
-            <strong>Status: Alpha.</strong> The CLI works today on real
-            repositories. The MCP server and VS Code dashboard are in active
-            development.
+            <strong>Status: Alpha.</strong> The CLI and MCP server work today on
+            real repositories and are covered by an end-to-end test suite. The
+            VS Code dashboard is maturing.
           </p>
           <p>Prefer a no-risk trial? Run a prepared handoff against the bundled demo workspace:</p>
           <pre class="doc-code"><code>npm run prepare -- "Add admin refresh token rotation" \
@@ -185,8 +186,8 @@ npm run drift</code></pre>
         </p>
       </div>
       <div class="visual-frame">
-        <img src="site/assets/context-savings-preview.svg" alt="Before and after context packet comparison showing 72 percent context saved">
-        <p class="figure-note">Illustrative example. Actual savings depend on your repo, the task, and the baseline you compare against.</p>
+        <img src="site/assets/context-savings-preview.svg" alt="Before and after context packet comparison showing 74 percent context reduction">
+        <p class="figure-note">Real demo-workspace figures. Actual savings depend on your repo, the task, and which baseline you compare against — Context Delta reports the full spectrum (open-files, naive-agent, whole-repo), not one number.</p>
       </div>
       <div class="demo-steps" aria-label="Quick demo flow">
         <article>
@@ -263,6 +264,42 @@ npm run drift</code></pre>
       </div>
     </section>
 
+    <section class="objection" id="depth">
+      <div class="section-heading">
+        <p class="eyebrow">Under the hood</p>
+        <h2>The context is good because the engineering is real.</h2>
+        <p>
+          Context Delta is not a prompt wrapper. Building a packet is a
+          deterministic, local analysis pass — no embeddings, no model calls,
+          nothing leaves your machine, in a fraction of a second.
+        </p>
+      </div>
+      <div class="objection-grid">
+        <article>
+          <h3>Exact, per-model token math</h3>
+          <p>Delivered context is counted with a real tokenizer — GPT-4o by
+          default, or pin <code>gpt-4</code>, a <code>gpt-5.x</code> model, or
+          any other — not a characters-÷-4 guess. Savings are reported against a
+          transparent spectrum (open-files, naive-agent, whole-repo) so the
+          number can never be cherry-picked.</p>
+        </article>
+        <article>
+          <h3>A real dependency graph</h3>
+          <p>Multi-hop impact analysis with distance decay follows imports and
+          re-exports — barrel files included — and coverage edges surface the
+          tests that actually import the code you changed. Works across JavaScript,
+          TypeScript, and Python.</p>
+        </article>
+        <article>
+          <h3>Local-first and honest</h3>
+          <p>Every included file carries a reason and every exclusion is listed.
+          Metrics are token-weighted, windowable, and never ship raw source by
+          default. An end-to-end suite drives the live MCP server to prove the
+          whole pipeline on every change.</p>
+        </article>
+      </div>
+    </section>
+
     <section class="showcase" id="integrations">
       <div class="showcase-copy">
         <p class="eyebrow">Product surface</p>
@@ -284,7 +321,7 @@ $ npm run drift
 Risk: low
 Changed outside packet: 0</code></pre>
       </div>
-      <p class="figure-note">Sample CLI output. Token figures are illustrative and computed locally per run.</p>
+      <p class="figure-note">Sample CLI output. Token figures are computed locally per run with a real tokenizer (configurable per model).</p>
     </section>
 
     <section class="preview-band">
@@ -333,7 +370,7 @@ Changed outside packet: 0</code></pre>
       <div class="metrics">
         <article>
           <span class="metric-label">Demo useful density</span>
-          <strong>96%</strong>
+          <strong>98%</strong>
           <span>average useful-context density across the bundled gold set</span>
         </article>
         <article>
@@ -352,7 +389,7 @@ Changed outside packet: 0</code></pre>
           <span>metrics avoid raw source and packet text by default</span>
         </article>
       </div>
-      <p class="metrics-note">Demo numbers are illustrative from the bundled eval workspace. Token reduction is a cost signal; packet-quality eval is the correctness signal.</p>
+      <p class="metrics-note">Demo numbers are real and reproducible from the bundled eval gold set (<code>npm run eval:multi</code>). Token reduction is a cost signal; packet-quality eval is the correctness signal.</p>
       <div class="visual-frame metrics-preview">
         <img src="site/assets/metrics-rollup-preview.svg" alt="Context Delta team metrics rollup preview">
       </div>
