@@ -366,6 +366,16 @@ async function runMetrics(rawArgs) {
   console.log(`Risk mix: ${formatCounts(summary.risk_counts)}`);
   console.log(`Budget mix: ${formatCounts(summary.budget_pressure_counts)}`);
   console.log(`Redactions applied: ${summary.redactions_applied}`);
+  console.log(`By model: ${formatBreakdown(summary.by_target_model)}`);
+  console.log(`By agent: ${formatBreakdown(summary.by_agent_host)}`);
+}
+
+function formatBreakdown(breakdown = {}) {
+  const entries = Object.entries(breakdown);
+  if (!entries.length) return "none";
+  return entries
+    .map(([key, value]) => `${key}=${value.sessions} (${formatPercent(value.average_context_reduction_percent)})`)
+    .join(", ");
 }
 
 async function runReport(rawArgs) {

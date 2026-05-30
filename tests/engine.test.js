@@ -634,6 +634,30 @@ test("source graph and coverage edges work for Python imports", async () => {
   assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "python test should be a covering test");
 });
 
+test("metrics rollup breaks down savings by model and agent", async () => {
+  const workspace = await createFixtureWorkspace();
+  for (const model of ["gpt-4o", "gpt-4o", "gpt-4"]) {
+    const { packet } = await buildContextPacket({
+      task: "Add refresh token rotation for admin users",
+      model,
+      target: "mcp-prepare-context",
+      updateSnapshot: false,
+      workspaceRoot: workspace
+    });
+    await writePacketAndMetrics(workspace, packet);
+  }
+
+  const summary = await readMetricsSummary(workspace);
+  assert.equal(summary.sessions, 3);
+  assert.equal(summary.by_target_model["gpt-4o"].sessions, 2);
+  assert.equal(summary.by_target_model["gpt-4"].sessions, 1);
+  assert.ok(summary.by_agent_host["mcp-prepare-context"].sessions === 3);
+  for (const group of Object.values(summary.by_target_model)) {
+    assert.ok(Number.isFinite(group.average_context_reduction_percent));
+    assert.ok(group.tokens_saved_estimate >= 0);
+  }
+});
+
 test("spec-to-code traceability surfaces specs that reference changed code", async () => {
   const workspace = await createFixtureWorkspace();
   await writeFile(workspace, "src/billing/invoice.ts", "export function renderInvoice(id) {\n  return id;\n}\n");

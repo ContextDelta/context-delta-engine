@@ -466,11 +466,38 @@ function createMetricsEvent(packet) {
     risk_level: packet.insights?.risk_level ?? "unknown",
     schema_version: METRICS_SCHEMA_VERSION,
     stale_spec_warnings_count: packet.warnings.filter((warning) => warning.type === "stale-spec").length,
+    target_model: packet.metrics.target_model ?? "default",
     target_tokens: packet.budget?.target_tokens ?? null,
     timestamp: nowIso(),
     tokens_saved_estimate: packet.metrics.tokens_saved_estimate,
     warnings_count: packet.warnings.length
   };
+}
+
+// Groups sessions by a field (e.g. agent_host or target_model) and reports
+// per-group sessions, tokens saved, and a token-weighted reduction, so teams
+// can see savings broken down by the model or agent that produced them.
+function breakdownBy(events, key) {
+  const groups = {};
+  for (const event of events) {
+    const groupKey = event[key] ?? "unknown";
+    const group = (groups[groupKey] ??= { sessions: 0, baseline: 0, delivered: 0, tokensSaved: 0 });
+    group.sessions += 1;
+    group.baseline += event.baseline_tokens_estimate ?? 0;
+    group.delivered +=
+      event.delivered_tokens_estimate ??
+      Math.max(0, (event.baseline_tokens_estimate ?? 0) - (event.tokens_saved_estimate ?? 0));
+    group.tokensSaved += event.tokens_saved_estimate ?? 0;
+  }
+  const result = {};
+  for (const [groupKey, totals] of Object.entries(groups)) {
+    result[groupKey] = {
+      sessions: totals.sessions,
+      tokens_saved_estimate: totals.tokensSaved,
+      average_context_reduction_percent: Number(percentReduction(totals.baseline, totals.delivered).toFixed(1))
+    };
+  }
+  return result;
 }
 
 function summarizeMetrics(events) {
@@ -519,6 +546,8 @@ function summarizeMetrics(events) {
     average_context_reduction_percent: Number(
       percentReduction(totals.baselineTokens, totals.deliveredTokens).toFixed(1)
     ),
+    by_agent_host: breakdownBy(events, "agent_host"),
+    by_target_model: breakdownBy(events, "target_model"),
     delivered_tokens_estimate: totals.deliveredTokens,
     average_packet_tokens_estimate:
       totalSessions > 0 ? Math.round(totals.packetTokens / totalSessions) : 0,
