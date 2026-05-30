@@ -541,6 +541,47 @@ test("metrics summary includes risk and budget aggregation", async () => {
   assert.equal(summary.budget_pressure_counts[packet.budget.pressure], 1);
 });
 
+test("coverage edges surface importing tests and resolve re-exports", async () => {
+  const workspace = await createFixtureWorkspace();
+  await writeFile(workspace, "src/billing/charge.ts", "export function charge() { return 1; }\n");
+  // Re-export barrel: previously missed because the graph ignored `export ... from`.
+  await writeFile(workspace, "src/billing/index.ts", 'export { charge } from "./charge";\n');
+  await writeFile(
+    workspace,
+    "src/billing/consumer.ts",
+    'import { charge } from "./index";\nexport const total = charge();\n'
+  );
+  await writeFile(
+    workspace,
+    "tests/billing/charge.test.ts",
+    'import { charge } from "../../src/billing/charge";\ntest("charge", () => { expect(charge()).toBe(1); });\n'
+  );
+
+  const scan = await scanWorkspace(workspace);
+  await writeSnapshot(workspace, scan.files);
+  await fs.appendFile(path.join(workspace, "src/billing/charge.ts"), "\nexport const updated = true;\n");
+
+  const { packet } = await buildContextPacket({
+    task: "update billing charge",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  // The test that imports the changed file is flagged as a covering test (not luck).
+  const coveringTest = packet.supporting_evidence.find(
+    (item) => item.path === "tests/billing/charge.test.ts"
+  );
+  assert.ok(coveringTest, "the test importing the changed file should be included");
+  assert.match(coveringTest.reason, /Covering test/);
+  assert.ok(coveringTest.coverage_targets?.includes("src/billing/charge.ts"));
+
+  // The `export ... from` re-export barrel is resolved as a dependent of the change.
+  assert.ok(
+    packet.impacted_neighbors.some((item) => item.path === "src/billing/index.ts"),
+    "re-export barrel should be found via the import graph"
+  );
+});
+
 test("packet history and diff compare previous and current packets", async () => {
   const workspace = await createFixtureWorkspace();
   const first = await buildContextPacket({

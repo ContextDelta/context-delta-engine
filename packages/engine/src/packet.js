@@ -21,7 +21,7 @@ import {
 import { redactPacket } from "./redaction.js";
 import { readFileSnippet, scanWorkspace } from "./scanner.js";
 import { buildSpecKitWarnings, detectSpecKit, scopeSpecEvidence } from "./spec-kit.js";
-import { findSourceGraphNeighbors } from "./source-graph.js";
+import { findCoveringTests, findSourceGraphNeighbors } from "./source-graph.js";
 import { detectSnapshotChanges, writeSnapshot } from "./snapshot.js";
 
 const DEFAULT_LIMITS = {
@@ -95,6 +95,24 @@ export async function buildContextPacket(options) {
     limit: limits.tests
   });
 
+  // Coverage edges: tests that import the changed files are the tests that
+  // actually exercise them. Surface these ahead of keyword-ranked tests with a
+  // precise reason, so a "you didn't include my test" complaint can't land.
+  const coveringTests = await findCoveringTests(eligibleFiles, changedPaths, {
+    snippetChars: limits.snippetChars
+  });
+  const coveringTestItems = await Promise.all(
+    coveringTests.map(async (covering) => {
+      const item = await fileToPacketItem(covering.file, changedPaths, keywords, limits);
+      return {
+        ...item,
+        coverage_targets: covering.covers,
+        reason: covering.reason,
+        score: (item.score ?? 0) + covering.score
+      };
+    })
+  );
+
   const rankedImpacted = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
     excludeKinds: ["instruction", "spec", "test"],
     limit: limits.impacted
@@ -122,6 +140,7 @@ export async function buildContextPacket(options) {
         tokens_estimate: section.tokensEstimate,
         type: section.fileKind === "spec" ? "spec_section" : "doc_section"
       })),
+    ...coveringTestItems,
     ...(await Promise.all(
       rankedTests.map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits))
     ))

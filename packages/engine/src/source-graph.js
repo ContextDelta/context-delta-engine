@@ -2,7 +2,11 @@ import path from "node:path";
 import { estimateTokensForText } from "../../shared/src/index.js";
 import { readFileSnippet } from "./scanner.js";
 
-const IMPORT_RE = /\bimport\s+(?:[^'"`]+?\s+from\s+)?["'`]([^"'`]+)["'`]|require\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+// Catches static imports, bare side-effect imports, re-exports (export ... from),
+// dynamic import(), and require(). Re-exports in particular were previously missed,
+// which made the graph overlook real dependencies.
+const IMPORT_RE =
+  /(?:\b(?:import|export)\b[^'"`;]*?\bfrom\s*|^\s*import\s*|\brequire\s*\(\s*|\bimport\s*\(\s*)["'`]([^"'`]+)["'`]/gm;
 const SYMBOL_RE =
   /\b(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var)\s+([A-Za-z_$][\w$]*)/g;
 
@@ -135,6 +139,36 @@ function traverseImpact(seeds, adjacency, impact, { maxHops, baseWeight, label }
   }
 }
 
+// Coverage edges: tests that directly IMPORT a target source file (e.g. a
+// changed file) are the tests that actually exercise it — far more reliable
+// than keyword matching, which can miss a test or pull in unrelated ones. This
+// mirrors the test/coverage edges in deterministic repo-graph approaches
+// (RIG, CodeRAG). Returns covering test files scored by how many targets they hit.
+export async function findCoveringTests(files, targetPaths, options = {}) {
+  const targets = new Set(targetPaths);
+  if (targets.size === 0) return [];
+
+  const eligible = files.filter((file) => file.textLike && !file.tooLarge);
+  const byPath = new Map(eligible.map((file) => [file.path, file]));
+  const testFiles = eligible.filter((file) => file.kind === "test");
+  const covering = [];
+
+  for (const test of testFiles) {
+    const content = await readFileSnippet(test, { maxChars: options.indexChars ?? 40_000 });
+    const imports = resolveImports(test.path, content, byPath);
+    const covers = imports.filter((importPath) => targets.has(importPath));
+    if (covers.length === 0) continue;
+    covering.push({
+      file: test,
+      covers,
+      reason: `Covering test: imports changed code (${covers.slice(0, 2).join(", ")})`,
+      score: 60 + covers.length * 10
+    });
+  }
+
+  return covering.sort((left, right) => right.score - left.score);
+}
+
 async function indexSourceFile(file, byPath) {
   const content = await readFileSnippet(file, { maxChars: 40_000 });
   return {
@@ -146,7 +180,7 @@ async function indexSourceFile(file, byPath) {
 function resolveImports(filePath, content, byPath) {
   const imports = [];
   for (const match of content.matchAll(IMPORT_RE)) {
-    const specifier = match[1] ?? match[2];
+    const specifier = match[1];
     if (!specifier || !specifier.startsWith(".")) continue;
     const resolved = resolveImportPath(filePath, specifier, byPath);
     if (resolved) imports.push(resolved);
@@ -154,19 +188,14 @@ function resolveImports(filePath, content, byPath) {
   return [...new Set(imports)];
 }
 
+const RESOLVE_EXTENSIONS = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts", ".vue", ".svelte", ".json"];
+
 function resolveImportPath(filePath, specifier, byPath) {
   const baseDir = path.posix.dirname(filePath);
   const bare = path.posix.normalize(path.posix.join(baseDir, specifier));
   const candidates = [
-    bare,
-    `${bare}.ts`,
-    `${bare}.tsx`,
-    `${bare}.js`,
-    `${bare}.jsx`,
-    `${bare}/index.ts`,
-    `${bare}/index.tsx`,
-    `${bare}/index.js`,
-    `${bare}/index.jsx`
+    ...RESOLVE_EXTENSIONS.map((extension) => `${bare}${extension}`),
+    ...RESOLVE_EXTENSIONS.filter(Boolean).map((extension) => `${bare}/index${extension}`)
   ];
 
   return candidates.find((candidate) => byPath.has(candidate)) ?? null;
