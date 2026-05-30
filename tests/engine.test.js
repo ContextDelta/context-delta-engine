@@ -526,6 +526,25 @@ test("pinning a directory expands to the files under it", async () => {
   );
 });
 
+test("a pinned file is not duplicated as ranked supporting evidence", async () => {
+  const workspace = await createFixtureWorkspace();
+  // Baseline so the test file isn't surfaced as a changed artifact instead.
+  await buildContextPacket({ task: "baseline", updateSnapshot: true, workspaceRoot: workspace });
+
+  // Pinning the tests directory makes admin-refresh.test.ts a pinned item; the
+  // auth task also ranks it as a nearby test. It must be delivered only once.
+  const { packet } = await buildContextPacket({
+    pin: ["tests"],
+    task: "Add admin refresh token rotation and cover it with tests",
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+
+  const testPath = "tests/auth/admin-refresh.test.ts";
+  const occurrences = packet.supporting_evidence.filter((item) => item.path === testPath);
+  assert.equal(occurrences.length, 1, "pinned test must not also appear as ranked supporting evidence");
+});
+
 test("a pinned file is not also delivered as an impacted neighbor", async () => {
   const workspace = await createFixtureWorkspace();
   // docs/site/styles.css exists in the fixture. Pinning it AND using a task whose

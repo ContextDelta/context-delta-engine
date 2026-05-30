@@ -179,6 +179,14 @@ export async function buildContextPacket(options) {
     (item) => !changedArtifactPaths.has(item.path)
   );
 
+  // A pinned file (e.g. from a pinned directory) must not also be re-delivered as a
+  // ranked supporting item such as a nearby test or doc section. Drop ranked
+  // evidence whose path is already pinned so its content is not sent twice.
+  const pinnedPaths = new Set(pinnedContext.map((item) => item.path));
+  const dedupedSupportingEvidence = scopedSupportingEvidence.filter(
+    (item) => !pinnedPaths.has(item.path)
+  );
+
   // Cross-bucket dedup: impacted neighbors are the lowest-priority "maybe related"
   // bucket, so drop any path already delivered with content in a primary bucket
   // (changed, governing constraints, pinned, or supporting evidence). Without this,
@@ -188,7 +196,7 @@ export async function buildContextPacket(options) {
     ...changedArtifacts.map((item) => item.path),
     ...governingConstraints.map((item) => item.path),
     ...pinnedContext.map((item) => item.path),
-    ...scopedSupportingEvidence.map((item) => item.path)
+    ...dedupedSupportingEvidence.map((item) => item.path)
   ]);
   const dedupedImpactedNeighbors = impactedNeighbors.filter(
     (item) => !higherPriorityPaths.has(item.path)
@@ -257,7 +265,7 @@ export async function buildContextPacket(options) {
         : null,
       features: specKit.features.map((feature) => ({ id: feature.id, active: feature.active }))
     },
-    supporting_evidence: [...pinnedContext, ...scopedSupportingEvidence],
+    supporting_evidence: [...pinnedContext, ...dedupedSupportingEvidence],
     summary: {},
     warnings,
     workspace: {
