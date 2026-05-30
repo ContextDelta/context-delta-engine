@@ -125,6 +125,25 @@ function activate(context) {
     vscode.commands.registerCommand("contextDelta.clearControls", () => clearControlsCommand()),
     vscode.commands.registerCommand("contextDelta.refreshDashboard", () => refreshDashboard())
   );
+
+  setupRealtimeWatch(context);
+}
+
+// Watches the packet artifact Context Delta writes, so the dashboard and status
+// bar reflect new packets in real time — whether a VS Code command, the CLI, or
+// an MCP client produced them. Debounced to coalesce rapid writes.
+function setupRealtimeWatch(context) {
+  if (!vscode.workspace.workspaceFolders?.length) return;
+  const watcher = vscode.workspace.createFileSystemWatcher("**/.contextdelta/packets/latest.json");
+  let timer = null;
+  const scheduleRefresh = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => refreshDashboard(), 250);
+  };
+  watcher.onDidChange(scheduleRefresh);
+  watcher.onDidCreate(scheduleRefresh);
+  watcher.onDidDelete(scheduleRefresh);
+  context.subscriptions.push(watcher);
 }
 
 function deactivate() {}
@@ -708,6 +727,7 @@ function renderPacketHtml(packet) {
     ${metric("Reduction", `${packet.metrics.context_reduction_percent}%`)}
     ${metric("Useful Density", `${packet.metrics.heuristic_useful_context_density_percent ?? 0}%`)}
     ${metric("Saved", `${packet.metrics.tokens_saved_estimate} tokens`)}
+    ${metric("Token count", formatTokenMethod(packet.metrics))}
   </section>
   <h2>Warnings</h2>
   ${packet.warnings.length ? packet.warnings.map(renderWarning).join("") : '<p class="subtle">No warnings.</p>'}
@@ -915,6 +935,20 @@ function renderInsightCard(card) {
 
 function metric(label, value) {
   return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+}
+
+// Describes how the packet measured tokens: exact (real tokenizer, with the
+// resolved model/encoding) or an estimated heuristic fallback.
+function formatTokenMethod(metrics) {
+  if (!metrics) return "unknown";
+  if (metrics.token_count_method === "exact_tokenizer") {
+    const target =
+      metrics.target_model && metrics.target_model !== "default"
+        ? metrics.target_model
+        : metrics.tokenizer_encoding ?? "o200k_base";
+    return `exact · ${target}`;
+  }
+  return "estimated";
 }
 
 class ContextDeltaDashboardProvider {

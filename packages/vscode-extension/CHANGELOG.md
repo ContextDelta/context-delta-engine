@@ -14,3 +14,7 @@
   pinning, and excluding context.
 - Local CLI/engine locator that supports both monorepo development and staged
   extension packaging.
+- Real-time dashboard: a file watcher refreshes the dashboard and status bar
+  whenever a new packet is written, including by the CLI or an MCP client.
+- Dashboard shows the token-count method (exact tokenizer vs estimated) and the
+  resolved model/encoding.
