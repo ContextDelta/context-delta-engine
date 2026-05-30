@@ -343,7 +343,10 @@ async function runSnapshot(rawArgs) {
 async function runMetrics(rawArgs) {
   const parsed = parseArgs(rawArgs);
   const workspaceRoot = path.resolve(parsed.options.workspace ?? ".");
-  const summary = await readMetricsSummary(workspaceRoot);
+  const summary = await readMetricsSummary(workspaceRoot, {
+    since: parsed.options.since,
+    limit: parsed.options.limit
+  });
 
   if (parsed.flags.has("json")) {
     console.log(JSON.stringify(summary, null, 2));

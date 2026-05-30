@@ -213,7 +213,7 @@ export async function writePacketAndMetrics(workspaceRoot, packet) {
   };
 }
 
-export async function readMetricsSummary(workspaceRoot) {
+export async function readMetricsSummary(workspaceRoot, options = {}) {
   const metricsPath = path.join(workspaceRoot, ".contextdelta", "reports", "session-metrics.jsonl");
   try {
     const raw = await fs.readFile(metricsPath, "utf8");
@@ -222,10 +222,28 @@ export async function readMetricsSummary(workspaceRoot) {
       .filter(Boolean)
       .map((line) => JSON.parse(line));
 
-    return summarizeMetrics(events);
+    return summarizeMetrics(windowEvents(events, options));
   } catch {
     return summarizeMetrics([]);
   }
+}
+
+// Optional time/recency window so the rollup reflects current behavior instead
+// of all history forever. `since` keeps events at or after a date; `limit`
+// keeps only the most recent N events.
+function windowEvents(events, { since, limit } = {}) {
+  let windowed = events;
+  const sinceTime = since ? Date.parse(since) : NaN;
+  if (Number.isFinite(sinceTime)) {
+    windowed = windowed.filter((event) => {
+      const eventTime = Date.parse(event.timestamp ?? event.created_at ?? "");
+      return Number.isFinite(eventTime) ? eventTime >= sinceTime : true;
+    });
+  }
+  if (Number.isFinite(Number(limit)) && Number(limit) > 0) {
+    windowed = windowed.slice(-Math.floor(Number(limit)));
+  }
+  return windowed;
 }
 
 export async function readMetricsEvents(workspaceRoot) {
@@ -434,6 +452,7 @@ function createMetricsEvent(packet) {
     budget_pressure: packet.budget?.pressure ?? "unknown",
     context_reduction_percent: packet.metrics.context_reduction_percent,
     created_at: packet.created_at,
+    delivered_tokens_estimate: packet.metrics.delivered_tokens_estimate,
     included_files_count: packet.summary.included_files_count,
     included_spec_units_count: packet.summary.included_spec_units_count,
     included_tests_count: packet.summary.included_tests_count,
@@ -461,6 +480,11 @@ function summarizeMetrics(events) {
       accumulator.tokensSaved += event.tokens_saved_estimate ?? 0;
       accumulator.packetTokens += event.packet_tokens_estimate ?? 0;
       accumulator.baselineTokens += event.baseline_tokens_estimate ?? 0;
+      // Prefer the delivered-content estimate; fall back to baseline-minus-saved
+      // for older events written before the field existed.
+      accumulator.deliveredTokens +=
+        event.delivered_tokens_estimate ??
+        Math.max(0, (event.baseline_tokens_estimate ?? 0) - (event.tokens_saved_estimate ?? 0));
       accumulator.manualOverrides += event.manual_overrides_count ?? 0;
       accumulator.packetExpansions += event.packet_expansions_count ?? 0;
       accumulator.redactions += event.redactions_applied_count ?? 0;
@@ -475,6 +499,7 @@ function summarizeMetrics(events) {
     {
       baselineTokens: 0,
       budgetPressureCounts: {},
+      deliveredTokens: 0,
       manualOverrides: 0,
       packetExpansions: 0,
       packetTokens: 0,
@@ -487,9 +512,14 @@ function summarizeMetrics(events) {
   );
 
   return {
+    // Token-weighted reduction of the context actually delivered to the agent
+    // vs. the naive baseline. Using delivered tokens (not the full serialized
+    // packet) and weighting by tokens keeps the figure honest across many
+    // sessions, including no-change runs.
     average_context_reduction_percent: Number(
-      percentReduction(totals.baselineTokens, totals.packetTokens).toFixed(1)
+      percentReduction(totals.baselineTokens, totals.deliveredTokens).toFixed(1)
     ),
+    delivered_tokens_estimate: totals.deliveredTokens,
     average_packet_tokens_estimate:
       totalSessions > 0 ? Math.round(totals.packetTokens / totalSessions) : 0,
     average_useful_context_density_percent:

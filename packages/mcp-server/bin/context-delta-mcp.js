@@ -369,13 +369,22 @@ const tools = [
   },
   {
     name: "get_context_metrics",
-    description: "Read local Context Delta metrics summary.",
+    description:
+      "Read the local Context Delta metrics rollup. Optionally window it with `since` (ISO date) or `limit` (most recent N sessions) so it reflects current behavior instead of all history.",
     inputSchema: {
       type: "object",
       properties: {
         workspaceRoot: {
           type: "string",
           description: "Optional workspace root."
+        },
+        since: {
+          type: "string",
+          description: "Only include sessions at or after this ISO date/time."
+        },
+        limit: {
+          type: "number",
+          description: "Only include the most recent N sessions."
         }
       }
     }
@@ -764,7 +773,10 @@ async function callTool(name, args) {
   }
 
   if (name === "get_context_metrics") {
-    const metrics = await readMetricsSummary(resolveWorkspace(args.workspaceRoot));
+    const metrics = await readMetricsSummary(resolveWorkspace(args.workspaceRoot), {
+      since: args.since,
+      limit: args.limit
+    });
     return toolText(metrics);
   }
 

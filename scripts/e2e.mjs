@@ -164,8 +164,16 @@ async function main() {
     const summary = JSON.parse(metricsResponse.result.content[0].text);
     check("metrics summary sessions == runs", summary.sessions === runs, `sessions=${summary.sessions}`);
     check("metrics summary tracks tokens saved", Number.isFinite(summary.tokens_saved_estimate) && summary.tokens_saved_estimate >= 0);
-    check("metrics summary has average reduction", Number.isFinite(summary.average_context_reduction_percent));
+    check(
+      "aggregate reduction is real (not the old 0% bug)",
+      summary.average_context_reduction_percent > 0,
+      `reduction=${summary.average_context_reduction_percent}`
+    );
     check("metrics summary has risk mix", summary.risk_counts && Object.keys(summary.risk_counts).length > 0, JSON.stringify(summary.risk_counts));
+
+    const windowed = await rpc("tools/call", { name: "get_context_metrics", arguments: { workspaceRoot: ws, limit: 1 } });
+    const windowedSummary = JSON.parse(windowed.result.content[0].text);
+    check("metrics windowing (limit) works", windowedSummary.sessions === 1, `sessions=${windowedSummary.sessions}`);
 
     const managerResponse = await rpc("tools/call", { name: "generate_manager_summary", arguments: { workspaceRoot: ws } });
     const manager = JSON.parse(managerResponse.result.content[0].text);
