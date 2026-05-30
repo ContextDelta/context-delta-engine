@@ -47,3 +47,4 @@ export { scanWorkspace } from "./scanner.js";
 export { applySetupFixes, getSetupStatus, renderSetupMarkdown } from "./setup.js";
 export { readSnapshot, writeSnapshot } from "./snapshot.js";
 export { getGitState } from "./git.js";
+export { getTokenizerInfo, resolveEncoding } from "../../shared/src/index.js";

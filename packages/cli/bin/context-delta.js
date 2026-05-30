@@ -13,6 +13,7 @@ import {
   getSupportedHandoffFormats,
   getGitState,
   getSetupStatus,
+  getTokenizerInfo,
   inferWorkspaceIntent,
   listPacketHistory,
   loadConfig,
@@ -718,6 +719,10 @@ async function runDoctor(rawArgs) {
   console.log(`Source files: ${counts.source ?? 0}`);
   console.log(`Policy exclusions: ${config.policy.excludePaths.length}`);
   console.log(`Pinned paths: ${config.controls.pin.length}`);
+  const tokenizer = getTokenizerInfo(config.targetModel);
+  console.log(
+    `Tokenizer: ${tokenizer.method === "exact_tokenizer" ? `exact (${tokenizer.encoding})` : "heuristic fallback (install gpt-tokenizer for exact counts)"}`
+  );
   console.log("");
   console.log("Status: ready");
 
@@ -866,6 +871,17 @@ function printPacketSummary(packet, outputPaths) {
   console.log(
     `Useful-context density: ${formatPercent(packet.metrics.heuristic_useful_context_density_percent)}`
   );
+  console.log(
+    `Token count: ${packet.metrics.token_count_method === "exact_tokenizer" ? "exact" : "estimated"}` +
+      ` (${packet.metrics.target_model && packet.metrics.target_model !== "default" ? packet.metrics.target_model : packet.metrics.tokenizer_encoding ?? "o200k_base"})`
+  );
+  if (packet.metrics.baselines) {
+    const spectrum = ["open_files_only", "naive_agent", "whole_repo"]
+      .filter((key) => packet.metrics.baselines[key])
+      .map((key) => `${key}=${formatPercent(packet.metrics.baselines[key].reduction_percent)}`)
+      .join(", ");
+    console.log(`Reduction vs baselines: ${spectrum}`);
+  }
   console.log(`Budget pressure: ${packet.budget?.pressure ?? "unknown"}`);
   if (packet.insights?.headline) {
     console.log(`Insight: ${packet.insights.headline}`);

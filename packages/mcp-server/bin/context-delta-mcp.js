@@ -572,6 +572,16 @@ async function callTool(name, args) {
       structuredContent: {
         format,
         inferred_task: !String(args.task ?? "").trim(),
+        metrics: {
+          baselines: packet.metrics.baselines,
+          chars_per_token_estimate: packet.metrics.chars_per_token_estimate,
+          context_reduction_percent: packet.metrics.context_reduction_percent,
+          delivered_tokens_estimate: packet.metrics.delivered_tokens_estimate,
+          target_model: packet.metrics.target_model,
+          token_count_method: packet.metrics.token_count_method,
+          tokenizer_encoding: packet.metrics.tokenizer_encoding,
+          useful_context_density_percent: packet.metrics.heuristic_useful_context_density_percent
+        },
         output_paths: outputPaths,
         packet_id: packet.id,
         risk_header: riskHeader,
