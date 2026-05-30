@@ -634,6 +634,37 @@ test("source graph and coverage edges work for Python imports", async () => {
   assert.ok(coveringTest && /Covering test/.test(coveringTest.reason), "python test should be a covering test");
 });
 
+test("engine degrades gracefully on cyclic imports, empty repos, and bad config", async () => {
+  // Cyclic imports must not hang the graph traversal.
+  const cyclic = await createFixtureWorkspace();
+  await writeFile(cyclic, "src/cycle/a.ts", 'import { b } from "./b";\nexport const a = 1;\n');
+  await writeFile(cyclic, "src/cycle/b.ts", 'import { a } from "./a";\nexport const b = 2;\n');
+  const cyclicScan = await scanWorkspace(cyclic);
+  await writeSnapshot(cyclic, cyclicScan.files);
+  await fs.appendFile(path.join(cyclic, "src/cycle/a.ts"), "\nexport const a2 = 1;\n");
+  const cyclicResult = await buildContextPacket({ task: "touch a", updateSnapshot: false, workspaceRoot: cyclic });
+  assert.ok(cyclicResult.packet.id);
+  assert.ok(cyclicResult.packet.impacted_neighbors.some((item) => item.path === "src/cycle/b.ts"));
+
+  // A workspace with effectively no relevant code still produces a valid packet.
+  const empty = await fs.mkdtemp(path.join(os.tmpdir(), "context-delta-empty-"));
+  await writeFile(empty, "README.md", "# Empty\n");
+  const emptyResult = await buildContextPacket({ task: "do something", updateSnapshot: false, workspaceRoot: empty });
+  assert.ok(emptyResult.packet.id);
+  assert.ok(Array.isArray(emptyResult.packet.changed_artifacts));
+
+  // Malformed config must fall back to defaults rather than throw.
+  const badConfig = await createFixtureWorkspace();
+  await writeFile(badConfig, "contextdelta.config.json", "{ this is not valid json ]");
+  const badResult = await buildContextPacket({
+    task: "Add refresh token rotation for admin users",
+    updateSnapshot: false,
+    workspaceRoot: badConfig
+  });
+  assert.ok(badResult.packet.id);
+  assert.equal(badResult.packet.controls.mode, "balanced");
+});
+
 test("metrics rollup breaks down savings by model and agent", async () => {
   const workspace = await createFixtureWorkspace();
   for (const model of ["gpt-4o", "gpt-4o", "gpt-4"]) {
