@@ -320,6 +320,26 @@ fresh enough to be reliable, rich enough to be correct, and visible enough
 to trust. Token reduction is a cost signal; the packet-quality eval below is
 the quality signal.
 
+## Honest baselines, not one cherry-picked number
+
+"How much did it save?" depends entirely on what you compare against, so
+Context Delta reports reduction against a transparent spectrum instead of a
+single flattering figure. Every packet includes a `baselines` block:
+
+| Baseline | What it assumes |
+| --- | --- |
+| `open_files_only` | A disciplined developer who shares only the changed and most recently edited files (conservative floor). |
+| `naive_agent` | An agent that also pulls full specs, instruction files, and a chat-history allowance (the typical, headline case). |
+| `whole_repo` | The entire directly-useful repository text (upper bound). |
+
+Each carries its own token estimate and reduction percentage, and the set is
+constructed to stay ordered (floor ≤ typical ≤ ceiling). Reduction against the
+conservative floor is the smallest, most defensible claim; against the whole
+repo it is the largest. Showing all three is the point — the savings number is
+auditable, not selected. Delivered tokens are measured with a real tokenizer
+(configurable per model); size-derived baselines use a chars-per-token ratio
+calibrated from each packet's own content.
+
 ## Product Preview
 
 ![Context Delta VS Code dashboard preview](docs/site/assets/vscode-dashboard-preview.svg)

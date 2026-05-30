@@ -729,6 +729,7 @@ function renderPacketHtml(packet) {
     ${metric("Saved", `${packet.metrics.tokens_saved_estimate} tokens`)}
     ${metric("Token count", formatTokenMethod(packet.metrics))}
   </section>
+  ${renderBaselines(packet.metrics)}
   <h2>Warnings</h2>
   ${packet.warnings.length ? packet.warnings.map(renderWarning).join("") : '<p class="subtle">No warnings.</p>'}
   <details>
@@ -935,6 +936,30 @@ function renderInsightCard(card) {
 
 function metric(label, value) {
   return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></div>`;
+}
+
+// Renders the transparent baseline spectrum (open-files floor / naive-agent /
+// whole-repo ceiling) so the savings number is shown as a range, not a single
+// cherry-picked figure. Each baseline's assumption is available on hover.
+function renderBaselines(metrics) {
+  const baselines = metrics?.baselines;
+  if (!baselines) return "";
+  const order = [
+    ["open_files_only", "Open files only"],
+    ["naive_agent", "Naive agent"],
+    ["whole_repo", "Whole repo"]
+  ];
+  const rows = order
+    .filter(([key]) => baselines[key])
+    .map(([key, label]) => {
+      const baseline = baselines[key];
+      return `<div class="metric" title="${escapeHtml(baseline.note ?? "")}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(baseline.reduction_percent))}% · ${escapeHtml(String(baseline.tokens_estimate))} tok</strong></div>`;
+    })
+    .join("");
+  if (!rows) return "";
+  return `<h2>Reduction vs baselines</h2>
+  <p class="subtle">How much smaller the delivered context is than what each baseline would pull. Hover for the assumption.</p>
+  <section class="summary">${rows}</section>`;
 }
 
 // Describes how the packet measured tokens: exact (real tokenizer, with the
