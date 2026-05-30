@@ -33,6 +33,24 @@ Supported modes:
 - `conservative`: includes more context to reduce omission risk
 - `strict`: smaller packets and policy-first behavior
 
+## Token model
+
+Token counts use a real tokenizer (`gpt-tokenizer`) when available, falling
+back to a fast heuristic otherwise. Set the target model so counts match the
+agent you actually use:
+
+```json
+{
+  "targetModel": "gpt-4o"
+}
+```
+
+The default (`null`) uses `o200k_base` (the GPT-4o / GPT-4.1 / o-series / GPT-5
+family), which is also the safe proxy for non-OpenAI or unknown models. Classic
+`gpt-4` / `gpt-3.5` map to `cl100k_base`. Override per run with the CLI
+`--model` flag or the `model` argument on the `prepare_context` MCP tool. Run
+`npm run doctor` to confirm whether the exact tokenizer is active.
+
 ## Budget
 
 Packet budget is advisory. Context Delta estimates packet tokens and marks

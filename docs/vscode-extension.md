@@ -58,10 +58,14 @@ The dashboard defaults to an agent-first workflow:
 - a setup fix action for installing the staged VS Code extension during
   development
 - a drift review so users can see whether an agent edited outside the packet
-- status bar readiness: `Context ready · risk`
-- risk level, estimated tokens saved, useful-context density, and budget
-  pressure
+- status bar readiness: `Context ready · risk · -N% context` (a waste meter)
+- risk level, estimated tokens saved, useful-context density, budget pressure,
+  the token-count method (exact vs estimated), and the baseline spectrum
 - latest packet headline and top selected paths
+- real-time updates: the dashboard and status bar refresh automatically when a
+  new packet is written by any producer (a command, the CLI, or an MCP client),
+  and the pop-out metrics/insights/diff/summary/report panels have an in-place
+  Refresh button
 
 Advanced controls are collapsed by default. They expose exact agent handoffs,
 packet-only creation, path include/exclude, preset tuning, config editing,

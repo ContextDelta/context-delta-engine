@@ -118,6 +118,22 @@ the default workflow.
 | VS Code extension | Alpha preview. It can prepare/copy handoffs, show packets, and review drift, but it is not marketplace-packaged yet. |
 | Automatic interception | Host-dependent. Context Delta cannot intercept a closed agent chat unless that host calls MCP/tools or exposes hooks. |
 
+## Dependency graph and languages
+
+Impact selection is a deterministic, local dependency graph — no embeddings, no
+model calls. It follows imports and re-exports with multi-hop transitive impact
+(distance-decayed), and adds two traceability edges: **coverage edges** (the
+tests that actually import the changed code) and **spec→code edges** (the spec
+sections that reference it). Import resolution works for **JavaScript /
+TypeScript** (incl. barrel re-exports and dynamic imports), **Python**
+(relative and intra-repo absolute imports, pytest files), and **Go**
+(module-aware package imports). Other languages still benefit from ranking,
+git/snapshot change detection, and same-directory signals.
+
+The whole pipeline — packet assembly, the graph, tokenization, baselines, and
+the analytics rollup — is exercised end to end against the live MCP server by
+`npm run e2e`.
+
 ## What A Developer Sees
 
 Run:

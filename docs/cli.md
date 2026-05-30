@@ -84,6 +84,16 @@ Use packet controls:
 npm run packet -- "Fix auth tests" --mode conservative --pin docs/auth.md --exclude docs/legacy/
 ```
 
+Target a specific model so token counts match the agent you use (`--pin` also
+accepts directories):
+
+```bash
+npm run packet -- "Fix auth tests" --model gpt-4 --pin src/auth/
+```
+
+The summary reports the token-count method (exact vs estimated) and the
+reduction against the open-files / naive-agent / whole-repo baseline spectrum.
+
 ## Scan Workspace
 
 ```bash
@@ -116,11 +126,18 @@ repositories.
 npm run context-delta -- metrics
 ```
 
+Window the rollup to recent activity:
+
+```bash
+npm run context-delta -- metrics --since 2026-05-01
+npm run context-delta -- metrics --limit 20
+```
+
 Shows local privacy-safe metrics:
 
 - sessions
 - estimated tokens saved
-- average context reduction
+- average (token-weighted) context reduction
 - average useful-context density
 - average packet size
 - packet expansions
@@ -128,6 +145,7 @@ Shows local privacy-safe metrics:
 - risk mix
 - budget pressure mix
 - redactions applied
+- savings broken down by model and by agent
 
 ## Report
 

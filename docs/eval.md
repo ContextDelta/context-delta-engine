@@ -68,6 +68,12 @@ npm run eval -- --workspace examples/demo-workspace --cases ../eval/gold-set.jso
 file, which lets one suite cover several small repo shapes without relying on
 the current checkout's local edits.
 
+The bundled multi-shape gold set (`npm run eval:multi`) currently covers five
+labeled cases across TypeScript (auth, and a notifications feature with a
+re-export barrel), JavaScript (an order service), a static site, and **Python**
+(a payments validation service) — verifying packet quality across languages and
+repo shapes, not just one.
+
 ## Metrics
 
 - **Impact coverage:** required paths included divided by required paths.

@@ -113,6 +113,26 @@ npm run summary
 The generated Markdown summary is designed to be pasted into a weekly
 engineering update without exposing raw code or raw prompts.
 
+## Honest accounting
+
+The numbers are built to survive scrutiny:
+
+- **Exact, per-model token counts.** Delivered context is measured with a real
+  tokenizer (configurable via `targetModel`), not a character heuristic.
+- **A baseline spectrum, not one number.** Every packet reports reduction
+  against three transparent baselines — `open_files_only` (floor),
+  `naive_agent` (typical, the headline), and `whole_repo` (ceiling) — so the
+  savings claim can't be cherry-picked.
+- **Token-weighted rollups.** The aggregate reduction weights by tokens and
+  uses delivered (not full-packet) size, so a few no-change runs can't drag it
+  to a misleading figure.
+- **Windowing.** `npm run metrics -- --since <date>` or `--limit <n>` (and the
+  `since` / `limit` arguments on the `get_context_metrics` MCP tool) scope the
+  rollup to recent activity.
+- **Per-model / per-agent breakdown.** The rollup includes `by_target_model`
+  and `by_agent_host`, so savings can be attributed to the model or agent that
+  produced them.
+
 ## Metrics Principles
 
 ### Privacy By Default

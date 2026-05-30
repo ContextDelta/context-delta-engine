@@ -22,7 +22,14 @@ node packages/mcp-server/bin/context-delta-mcp.js
 Primary tool:
 
 - `prepare_context`: builds or refreshes context, infers the task when needed,
-  and returns an agent-ready handoff plus `Context ready · risk=...`.
+  and returns an agent-ready handoff plus `Context ready · risk=...`. Accepts
+  `pin` (files or directories), `exclude`, and `model` (target tokenizer, e.g.
+  `gpt-4o`). Also returns a `structuredContent.metrics` block (delivered
+  tokens, reduction, the baseline spectrum, token-count method, target model,
+  and density) for programmatic clients.
+
+`get_context_metrics` accepts `since` / `limit` to window the rollup and
+returns `by_target_model` / `by_agent_host` breakdowns.
 
 Advanced tools:
 
