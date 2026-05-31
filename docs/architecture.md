@@ -130,23 +130,29 @@ Example:
 
 ## Ranking Signals
 
-Initial ranking should be explainable:
+Ranking is local, deterministic, and explainable. Implemented today:
 
-- active file and selection
-- exact filename or symbol match
-- git diff or local snapshot diff
+- git diff or local snapshot diff (changed files)
+- file-kind weighting (instruction, spec, test, source, doc)
+- path and filename keyword match
+- **content relevance**: task terms found in the file's text
+- **declared-symbol match**: task terms landing on function/class/type/def/func
+  names the file defines (language-aware extraction for JS/TS, Python, Go)
+- **IDF weighting**: rare, discriminating terms count for more than common ones,
+  so domain relevance (auth, payments, billing, ...) emerges from the repo's own
+  content rather than a hardcoded keyword list
+- import/reference proximity (source graph), coverage edges, spec→code edges
 - markdown heading relevance
-- test filename proximity
-- import/reference proximity
-- instruction file scope
-- recency
+- instruction file scope and closest-file-wins precedence
 - user pins and exclusions
+
+The content + symbol + IDF index is built locally per packet — no embeddings and
+no model calls — keeping ranking auditable and offline.
 
 Later ranking can add:
 
 - embeddings
-- tree-sitter symbols
-- LSP references
+- tree-sitter / LSP-backed symbols and references
 - cross-repo graph
 - PR and issue signals
 - CI and diagnostics

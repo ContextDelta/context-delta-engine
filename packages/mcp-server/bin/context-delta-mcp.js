@@ -36,6 +36,13 @@ const serverInfo = {
   version: "0.1.0"
 };
 
+// MCP protocol versions this server speaks, newest first. Negotiation echoes the
+// client's requested version when we support it, otherwise we answer with our
+// newest so hosts on a different revision still get a version they can match.
+const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+const DEFAULT_PROTOCOL_VERSION = "2024-11-05";
+
 const tools = [
   {
     name: "prepare_context",
@@ -493,7 +500,7 @@ rl.on("line", async (line) => {
     writeResponse(message.id, result);
   } catch (error) {
     writeResponse(message.id, null, {
-      code: -32000,
+      code: error.code ?? -32000,
       message: error.message
     });
   }
@@ -506,9 +513,15 @@ async function handleRequest(message) {
         resources: {},
         tools: {}
       },
-      protocolVersion: message.params?.protocolVersion ?? "2024-11-05",
+      protocolVersion: negotiateProtocolVersion(message.params?.protocolVersion),
       serverInfo
     };
+  }
+
+  // Liveness probe. Hosts (and the MCP spec) use ping to confirm the server is
+  // alive; it must return an empty result, not a method-not-found error.
+  if (message.method === "ping") {
+    return {};
   }
 
   if (message.method === "tools/list") {
@@ -523,14 +536,52 @@ async function handleRequest(message) {
     return { resources };
   }
 
+  // Hosts commonly probe these on connect even though we advertise neither
+  // capability. Answer with empty lists so the probe is a clean no-op instead
+  // of an error in the host's logs.
+  if (message.method === "resources/templates/list") {
+    return { resourceTemplates: [] };
+  }
+
+  if (message.method === "prompts/list") {
+    return { prompts: [] };
+  }
+
   if (message.method === "resources/read") {
     return readResource(message.params?.uri, message.params?.arguments ?? {});
   }
 
-  throw new Error(`Unsupported method: ${message.method}`);
+  const error = new Error(`Method not found: ${message.method}`);
+  error.code = -32601;
+  throw error;
 }
 
+function negotiateProtocolVersion(requested) {
+  if (!requested) return DEFAULT_PROTOCOL_VERSION;
+  return SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : LATEST_PROTOCOL_VERSION;
+}
+
+// Per the MCP spec, errors raised while a tool runs are reported inside the
+// tool result with isError:true (so the agent can read and recover from them),
+// not as JSON-RPC transport errors. Only protocol-level failures (unknown
+// method, malformed JSON) use the JSON-RPC error channel.
 async function callTool(name, args) {
+  try {
+    return await dispatchTool(name, args);
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Context Delta tool error: ${error.message}`
+        }
+      ],
+      isError: true
+    };
+  }
+}
+
+async function dispatchTool(name, args) {
   if (name === "prepare_context") {
     const workspaceRoot = resolveWorkspace(args.workspaceRoot);
     const task = String(args.task ?? "").trim() || (await inferWorkspaceIntent(workspaceRoot));

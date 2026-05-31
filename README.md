@@ -249,13 +249,13 @@ Score packet quality against the multi-shape labeled gold set:
 npm run eval:multi
 ```
 
-On the bundled gold set (auth change, static-site review, and node-service
-fix), the current engine measures:
+On the bundled gold set (auth change, static-site review, and JavaScript,
+Python, TypeScript, and Go service/test fixes), the current engine measures:
 
 | Metric | Result |
 | --- | --- |
-| Cases passed | 3 / 3 (100%) |
-| Useful-context density | 98% average |
+| Cases passed | 6 / 6 (100%) |
+| Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
 | Whole-workspace context reduction | 78% average |
@@ -387,15 +387,16 @@ them. Context Delta is designed to make that working set visible.
 
 Context quality should be measurable.
 
-Context Delta is designed to emit privacy-safe metrics such as:
+Context Delta emits privacy-safe local metrics today:
 
 - estimated input tokens saved
 - average packet size
 - files/specs/tests included per task
 - files excluded as stale or noisy
-- manual override rate
+- manual override rate (pins and excludes)
 - stale spec warnings
-- repeated context lookups avoided
+
+Planned: repeated-context lookups avoided.
 
 At team scale, those metrics can become repo and org summaries. The block
 below is an illustration of the report *format* with placeholder numbers, not
@@ -522,6 +523,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [VS Code extension](docs/vscode-extension.md)
 - [MCP integration](docs/mcp.md)
 - [MCP client setup](docs/mcp-client-setup.md)
+- [MCP multi-host conformance](docs/mcp-conformance.md)
 - [User experience](docs/user-experience.md)
 - [Metrics](docs/metrics.md)
 - [Launch checklist](docs/launch-checklist.md)

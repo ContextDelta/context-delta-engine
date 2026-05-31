@@ -54,7 +54,7 @@ export function derivePathKeywords(paths) {
   ];
 }
 
-export function scoreFile(file, keywords, changedPaths = new Set()) {
+export function scoreFile(file, keywords, changedPaths = new Set(), index = null) {
   let score = 0;
   const lowerPath = file.path.toLowerCase();
   const basename = path.posix.basename(lowerPath);
@@ -73,22 +73,31 @@ export function scoreFile(file, keywords, changedPaths = new Set()) {
     if (basename === "index.html") score += 24;
   }
 
+  // Content- and symbol-aware relevance, IDF-weighted. When a relevance index
+  // is supplied, the ranker reads what each file actually contains and defines,
+  // not just its path — and rare, discriminating task terms count for more.
+  // This generalizes domain relevance (auth, payments, billing, ...) from the
+  // repo's own content instead of a hardcoded keyword regex.
+  const entry = index?.byPath?.get(file.path) ?? null;
   for (const keyword of keywords) {
-    if (lowerPath.includes(keyword)) score += 12;
-    if (basename.includes(keyword)) score += 8;
+    const weight = index ? index.idfFor(keyword) : 1;
+    if (lowerPath.includes(keyword)) score += 12 * weight;
+    if (basename.includes(keyword)) score += 8 * weight;
+    if (entry) {
+      if (entry.symbolTerms.has(keyword)) score += 14 * weight;
+      const mentions = entry.termCounts.get(keyword) ?? 0;
+      if (mentions > 0) score += Math.min(mentions, 3) * 4 * weight;
+    }
   }
 
-  if (/auth|token|security|permission|role|admin/.test(keywordText)) {
-    if (/auth|token|security|permission|role|admin/.test(lowerPath)) score += 16;
-  }
-
-  return score;
+  return Math.round(score);
 }
 
 export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
   const limit = options.limit ?? 12;
   const excludeKinds = new Set(options.excludeKinds ?? []);
   const includeKinds = options.includeKinds ? new Set(options.includeKinds) : null;
+  const index = options.index ?? null;
 
   return files
     .filter((file) => file.textLike && !file.tooLarge)
@@ -96,7 +105,7 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
     .filter((file) => !includeKinds || includeKinds.has(file.kind))
     .map((file) => ({
       file,
-      score: scoreFile(file, keywords, changedPaths)
+      score: scoreFile(file, keywords, changedPaths, index)
     }))
     .filter((item) => item.score > 0)
     .sort((a, b) => {
@@ -106,13 +115,25 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
     .slice(0, limit);
 }
 
-export function explainFileInclusion(file, changedPaths, keywords) {
+export function explainFileInclusion(file, changedPaths, keywords, index = null) {
   if (changedPaths.has(file.path)) return "Changed in the current workspace delta";
   if (file.kind === "instruction") return "Repository or agent instruction that may govern the task";
   if (file.kind === "test") return "Nearby test or behavior check related to the task";
   if (file.kind === "spec") return "Spec-driven artifact related to the task";
 
-  const matched = keywords.filter((keyword) => file.path.toLowerCase().includes(keyword));
-  if (matched.length) return `Path matches task keyword(s): ${matched.join(", ")}`;
+  const matchedPath = keywords.filter((keyword) => file.path.toLowerCase().includes(keyword));
+  if (matchedPath.length) return `Path matches task keyword(s): ${matchedPath.join(", ")}`;
+
+  const entry = index?.byPath?.get(file.path) ?? null;
+  if (entry) {
+    const matchedSymbol = keywords.filter((keyword) => entry.symbolTerms.has(keyword));
+    if (matchedSymbol.length) {
+      return `Defines symbol(s) matching the task: ${matchedSymbol.join(", ")}`;
+    }
+    const matchedContent = keywords.filter((keyword) => entry.termCounts.has(keyword));
+    if (matchedContent.length) {
+      return `Content references task keyword(s): ${matchedContent.slice(0, 4).join(", ")}`;
+    }
+  }
   return "Ranked as relevant by file type, recency, or proximity";
 }

@@ -317,11 +317,12 @@ export function renderManagerSummaryMarkdown(managerSummary) {
     `- Sessions: ${summary.sessions}`,
     `- Estimated tokens saved: ${summary.tokens_saved_estimate}`,
     `- Average context reduction: ${summary.average_context_reduction_percent}%`,
-    `- Average useful-context density: ${summary.average_useful_context_density_percent}%`,
+    `- Average useful-context density (heuristic): ${summary.average_useful_context_density_percent}%`,
     `- Average packet size: ${summary.average_packet_tokens_estimate} tokens`,
     `- Low-risk packets: ${summary.low_risk_percent}%`,
     `- Over-budget packets: ${summary.over_budget_percent}%`,
     `- Redactions applied: ${summary.redactions_applied}`,
+    `- Manual overrides (pins/excludes): ${summary.manual_overrides}`,
     `- Stale spec warnings: ${summary.stale_spec_warnings}`,
     "",
     "## Risk Mix",
@@ -456,10 +457,10 @@ function createMetricsEvent(packet) {
     included_files_count: packet.summary.included_files_count,
     included_spec_units_count: packet.summary.included_spec_units_count,
     included_tests_count: packet.summary.included_tests_count,
-    manual_overrides_count: 0,
+    manual_overrides_count:
+      (packet.controls?.pinned?.length ?? 0) + (packet.controls?.excluded?.length ?? 0),
     packet_id: packet.id,
     packet_tokens_estimate: packet.metrics.packet_tokens_estimate,
-    packet_expansions_count: 0,
     wasted_tokens_estimate: packet.metrics.wasted_tokens_estimate ?? packet.metrics.tokens_saved_estimate,
     useful_context_density_percent: packet.metrics.heuristic_useful_context_density_percent,
     redactions_applied_count: packet.security?.redactions_applied ?? 0,
@@ -513,7 +514,6 @@ function summarizeMetrics(events) {
         event.delivered_tokens_estimate ??
         Math.max(0, (event.baseline_tokens_estimate ?? 0) - (event.tokens_saved_estimate ?? 0));
       accumulator.manualOverrides += event.manual_overrides_count ?? 0;
-      accumulator.packetExpansions += event.packet_expansions_count ?? 0;
       accumulator.redactions += event.redactions_applied_count ?? 0;
       accumulator.usefulDensity += event.useful_context_density_percent ?? 0;
       accumulator.riskCounts[event.risk_level ?? "unknown"] =
@@ -528,7 +528,6 @@ function summarizeMetrics(events) {
       budgetPressureCounts: {},
       deliveredTokens: 0,
       manualOverrides: 0,
-      packetExpansions: 0,
       packetTokens: 0,
       redactions: 0,
       riskCounts: {},
@@ -554,7 +553,7 @@ function summarizeMetrics(events) {
     average_useful_context_density_percent:
       totalSessions > 0 ? Number((totals.usefulDensity / totalSessions).toFixed(1)) : 0,
     budget_pressure_counts: totals.budgetPressureCounts,
-    packet_expansions: totals.packetExpansions,
+    manual_overrides: totals.manualOverrides,
     redactions_applied: totals.redactions,
     risk_counts: totals.riskCounts,
     sessions: totalSessions,
