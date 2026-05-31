@@ -24,9 +24,7 @@ Packet risk level
 Budget pressure
 Redactions applied
 Manual overrides
-Packet expansions
-Missing-context corrections
-Useful-context density
+Useful-context density (per-packet heuristic)
 Eval impact coverage
 ```
 
@@ -76,7 +74,6 @@ Example event:
   "warnings_count": 1,
   "redactions_applied_count": 0,
   "manual_overrides_count": 1,
-  "packet_expansions_count": 0,
   "stale_spec_warnings_count": 1
 }
 ```
@@ -100,8 +97,8 @@ This month (illustrative format, not real data):
 ```
 
 The only numbers Context Delta claims today come from the reproducible
-packet-quality eval (`npm run eval:multi`): 3/3 gold-set cases passing, 96%
-average useful-context density, 100% impact coverage, and 68% average
+packet-quality eval (`npm run eval:multi`): 6/6 gold-set cases passing, 96%
+average useful-context density, 100% impact coverage, and 78% average
 whole-workspace context reduction.
 
 Generate the local repo summary:
@@ -132,6 +129,12 @@ The numbers are built to survive scrutiny:
 - **Per-model / per-agent breakdown.** The rollup includes `by_target_model`
   and `by_agent_host`, so savings can be attributed to the model or agent that
   produced them.
+- **Two density measures, clearly named.** The rollup's
+  `useful_context_density_percent` is a fast per-packet *heuristic* (the share
+  of included items that look structurally useful). The headline density in the
+  README and `npm run eval:multi` is the *labeled* score against gold-set
+  expected/acceptable paths. They answer different questions and can differ; the
+  eval number is the quality signal, the heuristic is the always-on proxy.
 
 ## Metrics Principles
 

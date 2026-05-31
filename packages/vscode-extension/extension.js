@@ -828,7 +828,7 @@ function renderMetricsHtml(metrics) {
     ${metric("Sessions", metrics.sessions)}
     ${metric("Tokens Saved", metrics.tokens_saved_estimate)}
     ${metric("Avg Reduction", `${metrics.average_context_reduction_percent}%`)}
-    ${metric("Useful Density", `${metrics.average_useful_context_density_percent ?? 0}%`)}
+    ${metric("Useful Density (heuristic)", `${metrics.average_useful_context_density_percent ?? 0}%`)}
     ${metric("Avg Packet", `${metrics.average_packet_tokens_estimate} tokens`)}
     ${metric("Overrides", metrics.manual_overrides ?? 0)}
     ${metric("Stale Specs", metrics.stale_spec_warnings)}

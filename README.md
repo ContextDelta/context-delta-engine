@@ -387,15 +387,16 @@ them. Context Delta is designed to make that working set visible.
 
 Context quality should be measurable.
 
-Context Delta is designed to emit privacy-safe metrics such as:
+Context Delta emits privacy-safe local metrics today:
 
 - estimated input tokens saved
 - average packet size
 - files/specs/tests included per task
 - files excluded as stale or noisy
-- manual override rate
+- manual override rate (pins and excludes)
 - stale spec warnings
-- repeated context lookups avoided
+
+Planned: repeated-context lookups avoided.
 
 At team scale, those metrics can become repo and org summaries. The block
 below is an illustration of the report *format* with placeholder numbers, not
