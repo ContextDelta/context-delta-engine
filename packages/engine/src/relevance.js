@@ -38,7 +38,10 @@ const SYMBOL_PATTERNS = [
   /(?:^|\s)(?:export\s+)?type\s+([A-Za-z_$][\w$]*)/g,
   /(?:^|\s)(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g,
   /(?:^|\s)def\s+([A-Za-z_][\w]*)/g,
-  /(?:^|\s)func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)/g
+  /(?:^|\s)func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)/g,
+  /(?:^|\s)(?:pub\s+)?fn\s+([A-Za-z_]\w*)/g,
+  /(?:^|\s)(?:pub\s+)?(?:struct|trait|enum)\s+([A-Za-z_]\w*)/g,
+  /(?:^|\s)module\s+([A-Za-z_]\w*)/g
 ];
 
 // Splits an identifier into its parts so a task keyword can match part of a

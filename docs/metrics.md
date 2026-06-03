@@ -97,7 +97,7 @@ This month (illustrative format, not real data):
 ```
 
 The only numbers Context Delta claims today come from the reproducible
-packet-quality eval (`npm run eval:multi`): 7/7 gold-set cases passing, 96%
+packet-quality eval (`npm run eval:multi`): 8/8 gold-set cases passing, 96%
 average useful-context density, 100% impact coverage, and 82% average
 whole-workspace context reduction.
 

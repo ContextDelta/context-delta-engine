@@ -29,6 +29,11 @@ versioning once releases begin.
 - AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
   with closest-file-wins ordering.
 - Source graph neighbor detection for changed source files.
+- Import-graph resolution for Rust (`mod`/`use crate/super/self`), Java
+  (package-qualified imports), Ruby (`require_relative`), and PHP (relative
+  `require`/`include` and PSR-4 `use`), plus a Rust gold-set case and
+  top-level `tests/` directory recognition. The bundled gold set is now eight
+  cases across seven languages and a precision shape.
 - Content-, symbol-, and IDF-aware relevance ranking (local and deterministic,
   no embeddings): the ranker reads file content and declared symbols (JS/TS,
   Python, Go) and weights rare task terms higher, replacing the hardcoded

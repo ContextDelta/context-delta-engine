@@ -43,6 +43,8 @@ import { estimateTokensForText, getTokenizerInfo, resolveEncoding } from "../pac
 import { scoreFile, hasRelevanceSignal } from "../packages/engine/src/ranking.js";
 import { buildRelevanceIndex, tokenizeIdentifier } from "../packages/engine/src/relevance.js";
 import { buildInstructionWarnings } from "../packages/engine/src/instructions.js";
+import { findSourceGraphNeighbors } from "../packages/engine/src/source-graph.js";
+import { classifyFile } from "../packages/engine/src/file-kinds.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -1872,4 +1874,77 @@ test("impacted neighbors exclude unrelated same-kind decoy modules", async () =>
   } finally {
     await fs.rm(workspace, { recursive: true, force: true });
   }
+});
+
+// --- Multi-language import graph (Rust, Java, Ruby, PHP) + tests/ classification ---
+
+async function graphNeighborPaths(workspace, files, changedPath) {
+  const scan = await scanWorkspace(workspace);
+  const neighbors = await findSourceGraphNeighbors(scan.files, new Set([changedPath]), []);
+  return neighbors.map((item) => item.path);
+}
+
+async function withWorkspace(prefix, layout, run) {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  try {
+    for (const [rel, content] of Object.entries(layout)) {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    }
+    await run(workspace);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+}
+
+test("source graph resolves Rust mod and use crate imports", async () => {
+  await withWorkspace("cd-rust-", {
+    "src/lib.rs": "pub mod auth;\n",
+    "src/auth.rs": "pub fn rotate() {}\n",
+    "src/app.rs": "use crate::auth::rotate;\n\nfn main() { rotate(); }\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "src/auth.rs");
+    assert.ok(paths.includes("src/app.rs"), `app.rs should depend on auth.rs; got ${JSON.stringify(paths)}`);
+    assert.ok(paths.includes("src/lib.rs"), "lib.rs declares `mod auth`");
+  });
+});
+
+test("source graph resolves Java package imports by suffix", async () => {
+  await withWorkspace("cd-java-", {
+    "src/main/java/com/ex/Service.java": "package com.ex;\npublic class Service {}\n",
+    "src/main/java/com/ex/App.java": "package com.ex;\nimport com.ex.Service;\npublic class App {}\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "src/main/java/com/ex/Service.java");
+    assert.ok(paths.includes("src/main/java/com/ex/App.java"), `App should import Service; got ${JSON.stringify(paths)}`);
+  });
+});
+
+test("source graph resolves Ruby require_relative", async () => {
+  await withWorkspace("cd-ruby-", {
+    "lib/auth.rb": "def rotate; end\n",
+    "app.rb": "require_relative 'lib/auth'\n\nrotate\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "lib/auth.rb");
+    assert.ok(paths.includes("app.rb"), `app.rb should require lib/auth; got ${JSON.stringify(paths)}`);
+  });
+});
+
+test("source graph resolves PHP relative require and namespaced use", async () => {
+  await withWorkspace("cd-php-", {
+    "src/Auth.php": "<?php\nfunction rotate() {}\n",
+    "src/App.php": "<?php\nrequire_once __DIR__ . '/Auth.php';\n",
+    "src/Service.php": "<?php\nnamespace App;\nuse App\\Auth;\nclass Service {}\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "src/Auth.php");
+    assert.ok(paths.includes("src/App.php"), `App.php require should resolve; got ${JSON.stringify(paths)}`);
+  });
+});
+
+test("top-level tests/ directory is classified as test", () => {
+  assert.equal(classifyFile("tests/billing.rs"), "test");
+  assert.equal(classifyFile("test/foo.rb"), "test");
+  assert.equal(classifyFile("src/billing.rs"), "source");
+  // a source file that merely contains the substring must not be misread
+  assert.equal(classifyFile("src/testing-utils.ts"), "source");
 });

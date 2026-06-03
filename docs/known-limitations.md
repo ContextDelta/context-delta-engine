@@ -8,7 +8,7 @@ product.
 - Ranking is content-, symbol-, and IDF-aware but still local and lexical —
   not embedding-backed yet (by design: no model calls).
 - Symbols are extracted with lightweight language-aware patterns (JS/TS, Python,
-  Go), not a full tree-sitter/LSP parse yet.
+  Go, Rust, Java, Ruby, PHP), not a full tree-sitter/LSP parse yet.
 - One structural ranking heuristic remains for static-site/page review
   (HTML/CSS/JS under asset directories); broader eval coverage is needed before
   it can be generalized away.

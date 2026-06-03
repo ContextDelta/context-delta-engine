@@ -1,7 +1,7 @@
 {
   "name": "Context Delta multi-shape gold set",
   "version": "0.1",
-  "description": "Small eval suite that checks packet quality across auth code, a static site, JavaScript, Python, TypeScript, and Go service/test repo shapes, plus a precision case with decoy modules.",
+  "description": "Small eval suite that checks packet quality across auth code, a static site, JavaScript, Python, TypeScript, Go, and Rust service/test repo shapes, plus a precision case with decoy modules.",
   "cases": [
     {
       "id": "auth-refresh-rotation-demo",
@@ -200,6 +200,35 @@
       "pass": {
         "min_impact_coverage": 1,
         "min_useful_context_density": 0.6,
+        "max_omission_rate": 0,
+        "max_forbidden": 0
+      }
+    },
+    {
+      "id": "rust-billing-validation",
+      "workspace": "rust-service-workspace",
+      "task": "Reject zero or negative invoice amounts in the billing service and add test coverage",
+      "exclude": [
+        "docs/archive/"
+      ],
+      "minimum_context": {
+        "paths": [
+          "src/billing.rs",
+          "src/validation.rs",
+          "tests/billing.rs"
+        ],
+        "acceptable_paths": [
+          "specs/billing/spec.md",
+          "docs/billing.md",
+          "AGENTS.md"
+        ]
+      },
+      "forbidden_paths": [
+        "docs/archive/legacy-billing.md"
+      ],
+      "pass": {
+        "min_impact_coverage": 1,
+        "min_useful_context_density": 0.4,
         "max_omission_rate": 0,
         "max_forbidden": 0
       }

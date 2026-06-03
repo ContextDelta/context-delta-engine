@@ -126,9 +126,12 @@ model calls. It follows imports and re-exports with multi-hop transitive impact
 tests that actually import the changed code) and **spec→code edges** (the spec
 sections that reference it). Import resolution works for **JavaScript /
 TypeScript** (incl. barrel re-exports and dynamic imports), **Python**
-(relative and intra-repo absolute imports, pytest files), and **Go**
-(module-aware package imports). Other languages still benefit from ranking,
-git/snapshot change detection, and same-directory signals.
+(relative and intra-repo absolute imports, pytest files), **Go** (module-aware
+package imports), **Rust** (`mod` and `use crate/super/self`), **Java**
+(package-qualified imports), **Ruby** (`require_relative`), and **PHP**
+(relative `require`/`include` and PSR-4 `use`). Other languages still benefit
+from content/symbol ranking, git/snapshot change detection, and same-directory
+signals.
 
 The whole pipeline — packet assembly, the graph, tokenization, baselines, and
 the analytics rollup — is exercised end to end against the live MCP server by
@@ -250,12 +253,12 @@ npm run eval:multi
 ```
 
 On the bundled gold set (auth change, static-site review, JavaScript, Python,
-TypeScript, and Go service/test fixes, plus a precision case with decoy
+TypeScript, Go, and Rust service/test fixes, plus a precision case with decoy
 modules), the current engine measures:
 
 | Metric | Result |
 | --- | --- |
-| Cases passed | 7 / 7 (100%) |
+| Cases passed | 8 / 8 (100%) |
 | Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
