@@ -390,6 +390,8 @@ test("git delta reports deleted files as missing artifacts", async () => {
     "user.name=Context Delta Test",
     "-c",
     "user.email=context-delta@example.com",
+    "-c",
+    "commit.gpgsign=false",
     "commit",
     "-m",
     "initial fixture"
@@ -421,6 +423,8 @@ test("page review tasks prioritize untracked HTML CSS and JS changes", async () 
     "user.name=Context Delta Test",
     "-c",
     "user.email=context-delta@example.com",
+    "-c",
+    "commit.gpgsign=false",
     "commit",
     "-m",
     "initial fixture"
@@ -1058,6 +1062,8 @@ test("drift review flags current changes outside the latest packet", async () =>
     "user.name=Context Delta Test",
     "-c",
     "user.email=context-delta@example.com",
+    "-c",
+    "commit.gpgsign=false",
     "commit",
     "-m",
     "initial fixture"
