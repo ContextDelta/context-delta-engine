@@ -149,6 +149,19 @@ Ranking is local, deterministic, and explainable. Implemented today:
 The content + symbol + IDF index is built locally per packet — no embeddings and
 no model calls — keeping ranking auditable and offline.
 
+## Performance
+
+Everything runs locally and deterministically. On a synthetic 1,000-file
+TypeScript repo (`npm run benchmark`), the per-task work measures:
+
+| Stage | mean |
+| --- | --- |
+| Workspace scan + classify | ~80 ms |
+| Full packet assembly (scan + graph + index + rank + tokenize) | ~570 ms |
+
+These are wall-clock numbers on a single machine and scale with repo size; the
+benchmark is reproducible from a clean checkout.
+
 Later ranking can add:
 
 - embeddings

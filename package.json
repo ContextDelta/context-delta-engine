@@ -69,6 +69,8 @@
     "smoke": "node scripts/smoke-demo.js",
     "e2e": "node scripts/e2e.mjs",
     "mcp:conformance": "node scripts/mcp-conformance.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "pr-comment": "node scripts/pr-context-comment.mjs",
     "validate:release": "node scripts/validate-release.js",
     "vscode:stage": "node scripts/stage-vscode-extension.js",
     "check": "npm test && npm run syntax && node ./packages/cli/bin/context-delta.js doctor --workspace .",

@@ -499,7 +499,6 @@ Next:
 - packet replay and trend views
 - deeper Spec Kit folder detection
 - richer spec/plan/tasks parsing
-- GitHub Action packet reports
 
 Later:
 

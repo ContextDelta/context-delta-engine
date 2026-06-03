@@ -47,6 +47,12 @@ versioning once releases begin.
   `isError` results and protocol errors use `-32601` / `-32700` codes.
 - Automated multi-host MCP conformance harness (`npm run mcp:conformance`,
   wired into `release:check`) and a published host conformance contract.
+- GitHub Action (`context-packet.yml`) that posts a privacy-safe packet summary
+  on each PR — the working set, exclusions, and token economics, never raw code
+  — making the agent's context a reviewable artifact. Rendered by
+  `npm run pr-comment`.
+- Local performance benchmark (`npm run benchmark`): ~80 ms scan / ~570 ms full
+  packet assembly on a 1,000-file repo, reproducible and model-free.
 - VS Code extension shell with activity bar dashboard, packet view, insight
   view, diff view, manager summary view, handoff copy, and packet item actions.
 - GitHub Pages landing page, supporting static docs, and launch preview
