@@ -69,18 +69,36 @@ export async function findApplicableInstructions(files, relevantPaths, keywords,
 
 export function buildInstructionWarnings(instructionItems) {
   const warnings = [];
-  const byTool = new Map();
 
+  // Collapse to unique instruction FILES and resolve each file's tool from its
+  // path. The input mixes file-level items with per-heading instruction
+  // sections (which carry no tool tag); counting those as files produced a
+  // spurious "N generic files" precedence warning. Working at the file level
+  // makes the warning reflect real closest-file-wins competition (e.g. two
+  // AGENTS.md at different depths) instead.
+  const fileByPath = new Map();
   for (const item of instructionItems) {
-    const key = item.instruction_tool ?? "generic";
-    byTool.set(key, [...(byTool.get(key) ?? []), item]);
+    if (!item.path || fileByPath.has(item.path)) continue;
+    const metadata = getInstructionMetadata(item.path);
+    fileByPath.set(item.path, {
+      path: item.path,
+      precedence: item.precedence ?? metadata.precedence ?? 0,
+      tool: item.instruction_tool ?? metadata.tool ?? "generic"
+    });
   }
 
-  for (const [tool, items] of byTool) {
-    if (items.length <= 1) continue;
-    const scopes = items.map((item) => item.instruction_scope ?? ".").join(", ");
+  const byTool = new Map();
+  for (const file of fileByPath.values()) {
+    byTool.set(file.tool, [...(byTool.get(file.tool) ?? []), file]);
+  }
+
+  for (const [tool, files] of byTool) {
+    if (files.length <= 1) continue;
+    const ordered = [...files]
+      .sort((a, b) => (b.precedence ?? 0) - (a.precedence ?? 0))
+      .map((file) => file.path);
     warnings.push({
-      message: `${items.length} ${tool} instruction files apply. Context Delta sorted them by closest-file-wins precedence: ${scopes}.`,
+      message: `${files.length} ${tool} instruction files apply; Context Delta applied closest-file-wins precedence: ${ordered.join(" > ")}.`,
       type: "instruction-precedence"
     });
   }
