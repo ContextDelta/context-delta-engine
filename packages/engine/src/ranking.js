@@ -98,11 +98,17 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
   const excludeKinds = new Set(options.excludeKinds ?? []);
   const includeKinds = options.includeKinds ? new Set(options.includeKinds) : null;
   const index = options.index ?? null;
+  // When set, only surface files that have an actual task signal (changed,
+  // path/name, content, or symbol match) rather than the bare file-kind floor.
+  // Used for impacted neighbors so unrelated same-kind modules don't fill the
+  // packet on kind weight alone.
+  const requireSignal = options.requireSignal === true;
 
   return files
     .filter((file) => file.textLike && !file.tooLarge)
     .filter((file) => !excludeKinds.has(file.kind))
     .filter((file) => !includeKinds || includeKinds.has(file.kind))
+    .filter((file) => !requireSignal || hasRelevanceSignal(file, keywords, changedPaths, index))
     .map((file) => ({
       file,
       score: scoreFile(file, keywords, changedPaths, index)
@@ -113,6 +119,20 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
       return a.file.path.localeCompare(b.file.path);
     })
     .slice(0, limit);
+}
+
+// True when the task actually touches this file — changed, a path/name match, or
+// (with an index) a content or declared-symbol match. Distinguishes real
+// relevance from the baseline file-kind weight every file of a kind receives.
+export function hasRelevanceSignal(file, keywords, changedPaths = new Set(), index = null) {
+  if (changedPaths.has(file.path)) return true;
+  const lowerPath = file.path.toLowerCase();
+  const entry = index?.byPath?.get(file.path) ?? null;
+  for (const keyword of keywords) {
+    if (lowerPath.includes(keyword)) return true;
+    if (entry && (entry.symbolTerms.has(keyword) || entry.termCounts.has(keyword))) return true;
+  }
+  return false;
 }
 
 export function explainFileInclusion(file, changedPaths, keywords, index = null) {

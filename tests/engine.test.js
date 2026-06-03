@@ -40,6 +40,9 @@ import {
 } from "../packages/engine/src/index.js";
 
 import { estimateTokensForText, getTokenizerInfo, resolveEncoding } from "../packages/shared/src/index.js";
+import { scoreFile, hasRelevanceSignal } from "../packages/engine/src/ranking.js";
+import { buildRelevanceIndex, tokenizeIdentifier } from "../packages/engine/src/relevance.js";
+import { buildInstructionWarnings } from "../packages/engine/src/instructions.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -390,6 +393,8 @@ test("git delta reports deleted files as missing artifacts", async () => {
     "user.name=Context Delta Test",
     "-c",
     "user.email=context-delta@example.com",
+    "-c",
+    "commit.gpgsign=false",
     "commit",
     "-m",
     "initial fixture"
@@ -421,6 +426,8 @@ test("page review tasks prioritize untracked HTML CSS and JS changes", async () 
     "user.name=Context Delta Test",
     "-c",
     "user.email=context-delta@example.com",
+    "-c",
+    "commit.gpgsign=false",
     "commit",
     "-m",
     "initial fixture"
@@ -1058,6 +1065,8 @@ test("drift review flags current changes outside the latest packet", async () =>
     "user.name=Context Delta Test",
     "-c",
     "user.email=context-delta@example.com",
+    "-c",
+    "commit.gpgsign=false",
     "commit",
     "-m",
     "initial fixture"
@@ -1661,3 +1670,206 @@ function readJsonLine(stream) {
     stream.on("error", reject);
   });
 }
+
+// --- Content/symbol/IDF relevance ranking (locks in the ranking upgrade) ---
+
+test("tokenizeIdentifier splits compound symbol names into matchable terms", () => {
+  const camel = tokenizeIdentifier("rotateRefreshToken");
+  assert.ok(camel.includes("rotate"));
+  assert.ok(camel.includes("refresh"));
+  assert.ok(camel.includes("token"));
+  assert.ok(camel.includes("rotaterefreshtoken"));
+
+  const snake = tokenizeIdentifier("charge_amount");
+  assert.ok(snake.includes("charge"));
+  assert.ok(snake.includes("amount"));
+});
+
+test("scoreFile rewards a declared-symbol match over a content mention over neither", () => {
+  const index = {
+    byPath: new Map([
+      ["symbol.ts", { symbolTerms: new Set(["rotate"]), termCounts: new Map() }],
+      ["content.ts", { symbolTerms: new Set(), termCounts: new Map([["rotate", 2]]) }],
+      ["none.ts", { symbolTerms: new Set(), termCounts: new Map() }]
+    ]),
+    idfFor: () => 1
+  };
+  const mk = (p) => ({ path: p, kind: "source", textLike: true, tooLarge: false });
+  const keywords = ["rotate"];
+  const empty = new Set();
+
+  const symbolScore = scoreFile(mk("symbol.ts"), keywords, empty, index);
+  const contentScore = scoreFile(mk("content.ts"), keywords, empty, index);
+  const noneScore = scoreFile(mk("none.ts"), keywords, empty, index);
+
+  assert.ok(symbolScore > contentScore, `symbol ${symbolScore} should beat content ${contentScore}`);
+  assert.ok(contentScore > noneScore, `content ${contentScore} should beat none ${noneScore}`);
+});
+
+test("scoreFile weights a rarer keyword higher via IDF", () => {
+  const index = {
+    byPath: new Map([["f.ts", { symbolTerms: new Set(), termCounts: new Map([["common", 1], ["rare", 1]]) }]]),
+    // rare term gets a higher idf multiplier than the common one
+    idfFor: (term) => (term === "rare" ? 3 : 1)
+  };
+  const file = { path: "f.ts", kind: "source", textLike: true, tooLarge: false };
+  const empty = new Set();
+  const rareScore = scoreFile(file, ["rare"], empty, index);
+  const commonScore = scoreFile(file, ["common"], empty, index);
+  assert.ok(rareScore > commonScore, `rare ${rareScore} should beat common ${commonScore}`);
+});
+
+test("buildRelevanceIndex extracts symbols and ranks rare terms above common ones", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-relevance-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    // "common" appears in every file; "rotateRefreshToken" is a rare symbol.
+    await write("a.ts", "export function rotateRefreshToken() { return common(); }\n");
+    await write("b.ts", "export function common() { return 1; }\n");
+    await write("c.ts", "export function common2() { return common(); }\n");
+
+    const scan = await scanWorkspace(workspace);
+    const index = await buildRelevanceIndex(scan.files);
+
+    const entryA = index.byPath.get("a.ts");
+    assert.ok(entryA, "a.ts should be indexed");
+    assert.ok(entryA.symbolTerms.has("rotate"), "symbol terms should include 'rotate'");
+    assert.ok(entryA.symbolTerms.has("token"), "symbol terms should include 'token'");
+
+    // A term in 1 of 3 docs is rarer than one in all 3 -> higher idf.
+    assert.ok(index.idfFor("rotate") > index.idfFor("common"));
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("relevance ranking surfaces a file by symbol when its path does not match the task", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-symbol-rank-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    // Generic path, but the symbol matches the task. A decoy with neither.
+    await write("src/services/handler.ts", "export function rotateRefreshToken(user) { return user; }\n");
+    await write("src/services/other.ts", "export function unrelatedHelper() { return 0; }\n");
+    await write("README.md", "# Demo\n");
+
+    const { packet } = await buildContextPacket({
+      task: "rotate refresh token for admin",
+      updateSnapshot: false,
+      workspaceRoot: workspace
+    });
+
+    const included = getUniqueIncludedItems(packet).map((item) => item.path);
+    assert.ok(
+      included.includes("src/services/handler.ts"),
+      `symbol-matched file should be included; got ${JSON.stringify(included)}`
+    );
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+// --- Instruction precedence warning (locks in the file-vs-section fix) ---
+
+test("instruction precedence warning counts unique files and lists them, not dots", () => {
+  const items = [
+    { path: "AGENTS.md", type: "instruction_file", instruction_tool: "agents", precedence: 0 },
+    { path: "src/auth/AGENTS.md", type: "instruction_file", instruction_tool: "agents", precedence: 2 },
+    // a per-heading section of a file already counted — must not inflate the count
+    { path: "AGENTS.md", type: "instruction_section", heading: "Security" }
+  ];
+  const warnings = buildInstructionWarnings(items);
+  const precedence = warnings.find((warning) => warning.type === "instruction-precedence");
+  assert.ok(precedence, "expected a precedence warning for two same-tool files");
+  assert.match(precedence.message, /2 agents instruction files/);
+  // higher-precedence (closer) file listed first, and no row-of-dots artifact
+  assert.match(precedence.message, /src\/auth\/AGENTS\.md > AGENTS\.md/);
+  assert.ok(!/: (\.,\s*)+\.\.?$/.test(precedence.message));
+});
+
+test("instruction precedence warning does not fire for distinct single-tool files", () => {
+  const items = [
+    { path: "AGENTS.md", type: "instruction_file", instruction_tool: "agents" },
+    { path: "CLAUDE.md", type: "instruction_file", instruction_tool: "claude" },
+    { path: ".github/copilot-instructions.md", type: "instruction_file", instruction_tool: "github-copilot" },
+    // sections of those files must not be bucketed into a spurious "generic" group
+    { path: "AGENTS.md", type: "instruction_section", heading: "A" },
+    { path: "CLAUDE.md", type: "instruction_section", heading: "B" }
+  ];
+  const warnings = buildInstructionWarnings(items);
+  assert.ok(!warnings.some((warning) => warning.type === "instruction-precedence"));
+});
+
+// --- Manual-override metric (locks in the real-count fix) ---
+
+test("manual override metric reflects pins and excludes, and expansions field is gone", async () => {
+  const workspace = await createFixtureWorkspace();
+  const { packet } = await buildContextPacket({
+    task: "Add refresh token rotation for admin users",
+    pin: ["src/auth/service.ts"],
+    exclude: ["docs/"],
+    updateSnapshot: false,
+    workspaceRoot: workspace
+  });
+  await writePacketAndMetrics(workspace, packet);
+  const summary = await readMetricsSummary(workspace);
+  assert.ok(summary.manual_overrides >= 2, `expected >= 2 overrides, got ${summary.manual_overrides}`);
+  assert.ok(!("packet_expansions" in summary), "defunct packet_expansions should not be emitted");
+});
+
+// --- Impacted-neighbor signal filter (locks in the precision improvement) ---
+
+test("hasRelevanceSignal distinguishes real relevance from the bare kind floor", () => {
+  const index = {
+    byPath: new Map([
+      ["match-symbol.ts", { symbolTerms: new Set(["reorder"]), termCounts: new Map() }],
+      ["match-content.ts", { symbolTerms: new Set(), termCounts: new Map([["reorder", 1]]) }],
+      ["decoy.ts", { symbolTerms: new Set(), termCounts: new Map() }]
+    ]),
+    idfFor: () => 1
+  };
+  const mk = (p) => ({ path: p, kind: "source", textLike: true, tooLarge: false });
+  const keywords = ["reorder"];
+  const empty = new Set();
+
+  assert.equal(hasRelevanceSignal(mk("src/reorder.ts"), keywords, empty, index), true, "path match");
+  assert.equal(hasRelevanceSignal(mk("match-symbol.ts"), keywords, empty, index), true, "symbol match");
+  assert.equal(hasRelevanceSignal(mk("match-content.ts"), keywords, empty, index), true, "content match");
+  assert.equal(hasRelevanceSignal(mk("decoy.ts"), keywords, empty, index), false, "no signal");
+  assert.equal(hasRelevanceSignal(mk("decoy.ts"), keywords, new Set(["decoy.ts"]), index), true, "changed file");
+});
+
+test("impacted neighbors exclude unrelated same-kind decoy modules", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-precision-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    await write("src/reorder.ts", "export function reorderThreshold(stock, min) { return stock <= min; }\n");
+    await write("src/stock.ts", 'import { reorderThreshold } from "./reorder";\nexport const flag = (s, m) => reorderThreshold(s, m);\n');
+    // Decoys: same kind, unrelated to the task -> must not be surfaced.
+    await write("src/billing.ts", "export function invoiceTotal(rows) { return rows.length; }\n");
+    await write("src/telemetry.ts", "export function emitEvent(name) { return name; }\n");
+
+    const { packet } = await buildContextPacket({
+      task: "fix the stock reorder threshold",
+      updateSnapshot: false,
+      workspaceRoot: workspace
+    });
+
+    const impacted = packet.impacted_neighbors.map((item) => item.path);
+    assert.ok(!impacted.includes("src/billing.ts"), `decoy billing leaked: ${JSON.stringify(impacted)}`);
+    assert.ok(!impacted.includes("src/telemetry.ts"), `decoy telemetry leaked: ${JSON.stringify(impacted)}`);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});

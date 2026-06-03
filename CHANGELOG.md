@@ -23,6 +23,9 @@ versioning once releases begin.
   impact coverage, omission-rate, and forbidden-inclusion scoring.
 - Go service/test gold-set case (module-aware billing validation) proving
   Go import resolution and coverage edges end to end in the eval gate.
+- Precision gold-set case (inventory service with unrelated decoy modules,
+  gated on useful-context density) so a ranking regression that pulls in noise
+  fails the eval gate. The bundled set is now seven cases.
 - AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
   with closest-file-wins ordering.
 - Source graph neighbor detection for changed source files.

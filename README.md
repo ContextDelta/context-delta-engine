@@ -249,16 +249,17 @@ Score packet quality against the multi-shape labeled gold set:
 npm run eval:multi
 ```
 
-On the bundled gold set (auth change, static-site review, and JavaScript,
-Python, TypeScript, and Go service/test fixes), the current engine measures:
+On the bundled gold set (auth change, static-site review, JavaScript, Python,
+TypeScript, and Go service/test fixes, plus a precision case with decoy
+modules), the current engine measures:
 
 | Metric | Result |
 | --- | --- |
-| Cases passed | 6 / 6 (100%) |
+| Cases passed | 7 / 7 (100%) |
 | Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
-| Whole-workspace context reduction | 78% average |
+| Whole-workspace context reduction | 82% average |
 
 These are the only quality numbers Context Delta claims, and they are
 reproducible from a clean checkout with the command above. Token reduction is
