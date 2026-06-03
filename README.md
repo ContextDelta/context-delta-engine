@@ -523,6 +523,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [Observability](docs/observability.md)
 - [Testing](docs/testing.md)
 - [Packet-quality eval](docs/eval.md)
+- [ContextBench (correctness benchmark)](docs/contextbench.md)
 - [VS Code extension](docs/vscode-extension.md)
 - [MCP integration](docs/mcp.md)
 - [MCP client setup](docs/mcp-client-setup.md)

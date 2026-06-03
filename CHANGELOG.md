@@ -25,7 +25,12 @@ versioning once releases begin.
   Go import resolution and coverage edges end to end in the eval gate.
 - Precision gold-set case (inventory service with unrelated decoy modules,
   gated on useful-context density) so a ranking regression that pulls in noise
-  fails the eval gate. The bundled set is now seven cases.
+  fails the eval gate.
+- **ContextBench** (`npm run contextbench`): the labeled gold set packaged as a
+  citable, reproducible correctness benchmark (impact coverage, omission rate,
+  useful-context density, forbidden inclusions — token reduction as a secondary
+  signal), with a generated scorecard, a published spec, and a contribution path
+  for new cases.
 - AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
   with closest-file-wins ordering.
 - Source graph neighbor detection for changed source files.

@@ -60,6 +60,7 @@
     "summary": "node ./packages/cli/bin/context-delta.js summary",
     "eval": "node ./packages/cli/bin/context-delta.js eval",
     "eval:multi": "node ./packages/cli/bin/context-delta.js eval --workspace examples/eval --cases multi-shape-gold-set.json --dry-run --fail-on-failure",
+    "contextbench": "node ./scripts/contextbench.mjs",
     "approve": "node ./packages/cli/bin/context-delta.js approve",
     "replay": "node ./packages/cli/bin/context-delta.js replay",
     "mcp": "node ./packages/mcp-server/bin/context-delta-mcp.js",

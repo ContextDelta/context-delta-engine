@@ -2,6 +2,8 @@
 
 Context Delta is early. Contributions are welcome, especially around:
 
+- **ContextBench gold-set cases** — the highest-leverage contribution. See
+  [docs/contextbench.md](docs/contextbench.md) for how to add a labeled task.
 - clear examples
 - spec-driven development workflows
 - GitHub Copilot workflows

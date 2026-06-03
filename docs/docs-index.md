@@ -58,6 +58,7 @@ Start with the [README](../README.md), then read:
 - [Testing](testing.md)
 - [Release readiness](release.md)
 - [VS Code extension](vscode-extension.md)
+- [ContextBench (correctness benchmark)](contextbench.md)
 - [MCP client setup](mcp-client-setup.md)
 - [MCP multi-host conformance](mcp-conformance.md)
 - [Overnight build plan](overnight-build-plan.md)
