@@ -26,7 +26,8 @@ const SHAPE = {
   "ts-notifications-retry": "TypeScript · barrel re-export",
   "go-billing-validation": "Go · module-aware",
   "ts-inventory-reorder-precision": "TypeScript · precision (decoys)",
-  "rust-billing-validation": "Rust · mod/use crate"
+  "rust-billing-validation": "Rust · mod/use crate",
+  "ts-pricing-supersession": "TypeScript · spec supersession"
 };
 
 function scorecard(report) {

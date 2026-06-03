@@ -1,7 +1,7 @@
 {
   "name": "Context Delta multi-shape gold set",
   "version": "0.1",
-  "description": "Small eval suite that checks packet quality across auth code, a static site, JavaScript, Python, TypeScript, Go, and Rust service/test repo shapes, plus a precision case with decoy modules.",
+  "description": "Small eval suite that checks packet quality across auth code, a static site, JavaScript, Python, TypeScript, Go, and Rust service/test repo shapes, plus precision (decoy modules) and spec-supersession (deprecated spec) cases.",
   "cases": [
     {
       "id": "auth-refresh-rotation-demo",
@@ -225,6 +225,32 @@
       },
       "forbidden_paths": [
         "docs/archive/legacy-billing.md"
+      ],
+      "pass": {
+        "min_impact_coverage": 1,
+        "min_useful_context_density": 0.4,
+        "max_omission_rate": 0,
+        "max_forbidden": 0
+      }
+    },
+    {
+      "id": "ts-pricing-supersession",
+      "workspace": "ts-pricing-workspace",
+      "task": "Cap promotional discounts at 50 percent in the pricing calculator and cover it with a test",
+      "minimum_context": {
+        "paths": [
+          "src/pricing/calculator.ts",
+          "src/pricing/rules.ts",
+          "tests/pricing.test.ts"
+        ],
+        "acceptable_paths": [
+          "specs/pricing/spec.md",
+          "docs/pricing.md",
+          "AGENTS.md"
+        ]
+      },
+      "forbidden_paths": [
+        "specs/pricing/legacy-spec.md"
       ],
       "pass": {
         "min_impact_coverage": 1,

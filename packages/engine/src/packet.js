@@ -23,6 +23,7 @@ import {
 import { redactPacket } from "./redaction.js";
 import { buildRelevanceIndex } from "./relevance.js";
 import { readFileSnippet, scanWorkspace } from "./scanner.js";
+import { reviewSpecs } from "./spec-freshness.js";
 import { buildSpecKitWarnings, detectSpecKit, scopeSpecEvidence } from "./spec-kit.js";
 import { findCoveringTests, findSourceGraphNeighbors } from "./source-graph.js";
 import { detectSnapshotChanges, writeSnapshot } from "./snapshot.js";
@@ -179,7 +180,24 @@ export async function buildContextPacket(options) {
 
   // Spec Kit scoping: keep the active feature's spec sections, demote the rest.
   const specScope = scopeSpecEvidence(specKit, supportingEvidence);
-  const scopedSupportingEvidence = specScope.kept;
+
+  // Spec freshness: a spec section marked deprecated/superseded is a stale
+  // requirement — keep it out of the packet (the agent should never plan from
+  // it) and report why.
+  const candidateSpecPaths = new Set(
+    specScope.kept.filter((item) => item.type === "spec_section").map((item) => item.path)
+  );
+  const specReview = await reviewSpecs(
+    eligibleFiles.filter((file) => file.kind === "spec" && candidateSpecPaths.has(file.path)),
+    { snippetChars: limits.snippetChars }
+  );
+  const deprecatedSpecPaths = new Set(specReview.deprecated.map((entry) => entry.path));
+  const scopedSupportingEvidence = specScope.kept.filter((item) => !deprecatedSpecPaths.has(item.path));
+  const deprecatedSpecExclusions = specReview.deprecated.map((entry) => ({
+    kind: "spec",
+    path: entry.path,
+    reason: `Spec marked ${entry.status}; excluded as a stale requirement.`
+  }));
 
   const relevantPaths = new Set([
     ...changedArtifacts.map((item) => item.path),
@@ -254,6 +272,7 @@ export async function buildContextPacket(options) {
   );
 
   const excluded = [
+    ...deprecatedSpecExclusions,
     ...policyExcluded.map((file) => ({
       kind: file.kind,
       path: file.path,
@@ -276,7 +295,11 @@ export async function buildContextPacket(options) {
   const warnings = [
     ...buildWarnings({ config, git, scan, snapshot, supportingEvidence: scopedSupportingEvidence }),
     ...buildInstructionWarnings(governingConstraints),
-    ...buildSpecKitWarnings(specKit)
+    ...buildSpecKitWarnings(specKit),
+    ...specReview.deprecated.map((entry) => ({
+      message: `Spec ${entry.path} is marked ${entry.status}; kept out of the packet as a stale requirement.`,
+      type: "stale-spec"
+    }))
   ];
 
   const packetDraft = {
@@ -309,6 +332,9 @@ export async function buildContextPacket(options) {
       task
     },
     schema_version: PACKET_SCHEMA_VERSION,
+    spec_review: {
+      deprecated_specs: specReview.deprecated
+    },
     spec_kit: {
       detected: specKit.isSpecKit,
       has_specify_dir: specKit.hasSpecify,

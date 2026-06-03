@@ -2065,3 +2065,33 @@ test("monorepo layout is detected and surfaced", async () => {
     assert.equal(packet.workspace.monorepo.tool, "pnpm");
   });
 });
+
+// --- Spec freshness: deprecated/superseded specs kept out of the packet (B3) ---
+
+test("detectSpecStatus recognizes stale and active statuses", async () => {
+  const { detectSpecStatus, isStaleStatus } = await import("../packages/engine/src/spec-freshness.js");
+  assert.equal(detectSpecStatus("# Spec\n\nStatus: Superseded\n"), "superseded");
+  assert.equal(detectSpecStatus("## Deprecated: old rule\n"), "deprecated");
+  assert.equal(detectSpecStatus("This document is obsolete and no longer valid."), "deprecated");
+  assert.equal(detectSpecStatus("Status: Accepted\n"), "accepted");
+  assert.equal(detectSpecStatus("# Spec\n\nA normal requirement.\n"), null);
+  assert.equal(isStaleStatus("superseded"), true);
+  assert.equal(isStaleStatus("draft"), false);
+  assert.equal(isStaleStatus("accepted"), false);
+});
+
+test("a deprecated spec is excluded from the packet with a reason and warning", async () => {
+  await withWorkspace("cd-staleSpec-", {
+    "specs/feature/spec.md": "# Feature Spec\n\nStatus: Accepted\n\n## Requirement: cap value at 50\n\nThe service must cap the value at 50.\n",
+    "specs/feature/legacy.md": "# Feature Spec (legacy)\n\nStatus: Superseded\n\n## Requirement: no cap\n\nOld rule: the service allows uncapped values.\n",
+    "src/service.ts": "export function cap(v) { return Math.min(v, 50); }\n",
+    "AGENTS.md": "# Agent Instructions\n\nFollow the current spec, not superseded ones.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "cap the service value at 50", updateSnapshot: false, workspaceRoot: ws });
+    const includedSpecs = getUniqueIncludedItems(packet).filter((i) => i.type === "spec_section").map((i) => i.path);
+    assert.ok(!includedSpecs.includes("specs/feature/legacy.md"), `superseded spec must not be included; got ${JSON.stringify(includedSpecs)}`);
+    assert.ok(packet.spec_review.deprecated_specs.some((d) => d.path === "specs/feature/legacy.md" && d.status === "superseded"));
+    assert.ok(packet.excluded.some((e) => e.path === "specs/feature/legacy.md" && /superseded/i.test(e.reason)));
+    assert.ok(packet.warnings.some((w) => w.type === "stale-spec"));
+  });
+});
