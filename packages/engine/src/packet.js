@@ -375,6 +375,17 @@ export async function buildContextPacket(options) {
     ...redacted.warnings,
     ...buildBudgetWarnings(redacted.metrics.packet_tokens_estimate, budgetTier.targetTokens)
   ];
+  // Governance: an auditable record of what policy enforced on this packet —
+  // policy exclusions, secret redactions, deprecated specs kept out, and whether
+  // the delivered context stayed within any configured hard ceiling.
+  redacted.compliance = buildCompliance({
+    config,
+    deprecatedSpecs: specReview.deprecated,
+    deliveredTokens: redacted.metrics.delivered_tokens_estimate,
+    policyExcludedCount: policyExcluded.length,
+    redactionsApplied: redacted.security?.redactions_applied ?? 0
+  });
+  redacted.warnings = [...redacted.warnings, ...redacted.compliance.violations.map((message) => ({ message, type: "policy-violation" }))];
   redacted.summary = buildSummary(redacted);
   redacted.id = createPacketId(redacted);
   redacted.insights = buildPacketInsights(redacted);
@@ -601,6 +612,31 @@ function buildBudgetWarnings(packetTokensEstimate, targetTokens) {
 // Raises the budget ceiling with change volume so a large, legitimate diff is
 // not flagged as over budget. Tiers mirror common presets; the configured
 // target is treated as a floor, never lowered.
+// Builds the governance/compliance record for the packet: what policy enforced,
+// and whether the delivered context honored any configured hard limits. Makes
+// the packet an audit artifact — the governance angle for teams and enterprises.
+function buildCompliance({ config, deprecatedSpecs, deliveredTokens, policyExcludedCount, redactionsApplied }) {
+  const maxDeliveredTokens = config.policy?.maxDeliveredTokens ?? null;
+  const withinTokenCeiling =
+    !Number.isFinite(maxDeliveredTokens) || maxDeliveredTokens <= 0 ? true : deliveredTokens <= maxDeliveredTokens;
+  const violations = [];
+  if (!withinTokenCeiling) {
+    violations.push(
+      `Delivered ${deliveredTokens} tokens exceeds policy ceiling of ${maxDeliveredTokens}; tighten exclusions or raise the ceiling.`
+    );
+  }
+  return {
+    delivered_tokens: deliveredTokens,
+    deprecated_specs_excluded: deprecatedSpecs.length,
+    max_delivered_tokens: maxDeliveredTokens,
+    policy_excluded_count: policyExcludedCount,
+    redact_secrets: config.policy?.redactSecrets !== false,
+    redactions_applied: redactionsApplied,
+    violations,
+    within_token_ceiling: withinTokenCeiling
+  };
+}
+
 // Detects common monorepo layouts so the packet can report the workspace shape.
 // Lightweight metadata for now (used by surfaces and future per-package scoping).
 async function detectMonorepo(files, root) {

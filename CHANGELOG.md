@@ -92,6 +92,15 @@ versioning once releases begin.
 - `prepare` npm lifecycle guard so installing/publishing no longer triggers a
   CLI packet build, while `npm run prepare -- "task"` still works.
 
+- Spec freshness: deprecated/superseded specs are detected and kept out of the
+  packet (with a reason, a warning, and a `spec_review` block), plus a
+  spec-supersession ContextBench case — so stale requirements are not fed to the
+  agent. The gold set is now nine cases.
+- Governance `compliance` block on every packet: policy exclusions, secret
+  redaction status, deprecated specs excluded, and an optional
+  `policy.maxDeliveredTokens` hard ceiling with violation flagging — making the
+  packet an audit artifact.
+
 ### Security
 
 - Default path exclusions for secrets and local runtime folders.

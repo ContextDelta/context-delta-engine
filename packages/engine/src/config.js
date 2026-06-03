@@ -36,6 +36,7 @@ export const DEFAULT_CONFIG = {
     targets: [".github/copilot-instructions.md", "AGENTS.md"]
   },
   policy: {
+    maxDeliveredTokens: null,
     excludePaths: [
       ".env",
       ".env.*",

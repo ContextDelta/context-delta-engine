@@ -2095,3 +2095,34 @@ test("a deprecated spec is excluded from the packet with a reason and warning", 
     assert.ok(packet.warnings.some((w) => w.type === "stale-spec"));
   });
 });
+
+// --- Governance / compliance block + token ceiling (B6) ---
+
+test("packet carries a compliance record and honors a token ceiling", async () => {
+  await withWorkspace("cd-compliance-", {
+    "src/app.ts": "export function run() { return 1; }\n",
+    "AGENTS.md": "# Agent Instructions\n\nKeep it small.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "run the app", updateSnapshot: false, workspaceRoot: ws });
+    assert.ok(packet.compliance, "compliance block present");
+    assert.equal(packet.compliance.within_token_ceiling, true);
+    assert.equal(packet.compliance.violations.length, 0);
+    assert.equal(packet.compliance.redact_secrets, true);
+    assert.ok(Number.isFinite(packet.compliance.delivered_tokens));
+  });
+});
+
+test("a delivered-token policy ceiling produces a violation and warning", async () => {
+  await withWorkspace("cd-ceiling-", {
+    "contextdelta.config.json": JSON.stringify({ policy: { maxDeliveredTokens: 5 } }),
+    "src/app.ts": "export function run() { return computeSomethingLong(1, 2, 3); }\n",
+    "specs/app/spec.md": "# App Spec\n\n## Requirement\n\nThe app must run and compute things.\n",
+    "AGENTS.md": "# Agent Instructions\n\nFollow the spec.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "run the app and compute things", updateSnapshot: false, workspaceRoot: ws });
+    assert.equal(packet.compliance.max_delivered_tokens, 5);
+    assert.equal(packet.compliance.within_token_ceiling, false, "delivered tokens should exceed a tiny ceiling");
+    assert.ok(packet.compliance.violations.length >= 1);
+    assert.ok(packet.warnings.some((w) => w.type === "policy-violation"));
+  });
+});
