@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { estimateTokensForText } from "../../shared/src/index.js";
+import { extractSignatures } from "./compression.js";
 import { readFileSnippet } from "./scanner.js";
 
 // Catches static imports, bare side-effect imports, re-exports (export ... from),
@@ -92,14 +93,24 @@ export async function findSourceGraphNeighbors(files, changedPaths, keywords, op
     }
 
     if (score <= 0) continue;
-    const content = await readFileSnippet(file, { maxChars: snippetChars });
+    const full = await readFileSnippet(file, { maxChars: snippetChars });
+    // Distant impact (2+ hops from the change) rarely needs full bodies — send a
+    // signature skeleton instead, falling back to the full snippet when stripping
+    // wouldn't help. Direct impact (hop 1) and same-dir/keyword neighbors keep
+    // full content.
+    const distance = transitive?.minHop ?? null;
+    const compressed = options.compressDistant !== false && distance !== null && distance >= 2
+      ? extractSignatures(full, file.path)
+      : null;
+    const content = compressed ?? full;
     neighbors.push({
       content,
-      graph_distance: transitive?.minHop ?? null,
+      compression: compressed ? "signatures" : "full",
+      graph_distance: distance,
       graph_reason: reasons,
       kind: file.kind,
       path: file.path,
-      reason: `Source graph neighbor: ${reasons.join("; ")}.`,
+      reason: `Source graph neighbor: ${reasons.join("; ")}${compressed ? " (signatures only)" : ""}.`,
       score: Number(score.toFixed(2)),
       tokens_estimate: estimateTokensForText(content),
       type: "graph_neighbor"

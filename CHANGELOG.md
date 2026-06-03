@@ -38,6 +38,10 @@ versioning once releases begin.
   no embeddings): the ranker reads file content and declared symbols (JS/TS,
   Python, Go) and weights rare task terms higher, replacing the hardcoded
   auth-domain keyword regex with relevance derived from the repo itself.
+- Signature-skeleton compression (`compression.js`): distant graph neighbors
+  (2+ hops from the change) are sent as declaration/signature skeletons with
+  bodies stripped — deterministic, model-free — falling back to full content
+  when stripping wouldn't help. Direct impact keeps full bodies.
 - Packet approval and replay artifacts for reviewable agent handoff.
 - Local HTML report and manager summary exports.
 - MCP stdio server with packet, compact, insight, diff, handoff, eval,

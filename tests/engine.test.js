@@ -1948,3 +1948,59 @@ test("top-level tests/ directory is classified as test", () => {
   // a source file that merely contains the substring must not be misread
   assert.equal(classifyFile("src/testing-utils.ts"), "source");
 });
+
+// --- Signature compression (model-free body stripping for distant context) ---
+
+test("extractSignatures keeps declarations and drops bodies, smaller output", async () => {
+  const { extractSignatures } = await import("../packages/engine/src/compression.js");
+  const ts = [
+    'import { x } from "./x";',
+    "export function rotate(token, admin) {",
+    "  const a = compute(token);",
+    "  if (admin) { return escalate(a); }",
+    "  return a;",
+    "}"
+  ].join("\n");
+  const skeleton = extractSignatures(ts, "src/auth.ts");
+  assert.ok(skeleton, "should produce a skeleton for a brace language");
+  assert.ok(skeleton.includes("export function rotate(token, admin)"), "keeps the signature");
+  assert.ok(!skeleton.includes("escalate"), "drops body internals");
+  assert.ok(skeleton.length < ts.length, "skeleton is smaller");
+
+  const py = ["import os", "", "def charge(amount):", "    if amount <= 0:", "        raise ValueError('bad')", "    return amount"].join("\n");
+  const pySkeleton = extractSignatures(py, "pay.py");
+  assert.ok(pySkeleton.includes("def charge(amount):"), "keeps python def header");
+  assert.ok(!pySkeleton.includes("ValueError"), "drops python body");
+
+  assert.equal(extractSignatures("plain text", "notes.txt"), null, "non-code returns null");
+});
+
+test("distant graph neighbors are sent as signature skeletons", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-compress-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    // core <- mid <- app : app is 2 hops from core
+    await write("src/core.ts", "export function core(x) { return x + 1; }\n");
+    await write("src/mid.ts", 'import { core } from "./core";\nexport function mid(x) { return core(x); }\n');
+    await write(
+      "src/app.ts",
+      'import { mid } from "./mid";\nexport function app(x) {\n  const secret = computeSecretThing(x);\n  return mid(secret);\n}\n'
+    );
+
+    const scan = await scanWorkspace(workspace);
+    const neighbors = await findSourceGraphNeighbors(scan.files, new Set(["src/core.ts"]), []);
+    const app = neighbors.find((n) => n.path === "src/app.ts");
+    const mid = neighbors.find((n) => n.path === "src/mid.ts");
+    assert.ok(app, "app.ts (2 hops) should be a neighbor");
+    assert.equal(app.graph_distance, 2);
+    assert.equal(app.compression, "signatures", "distant neighbor is compressed");
+    assert.ok(!app.content.includes("computeSecretThing"), "body stripped from distant neighbor");
+    assert.equal(mid.compression, "full", "direct (1-hop) neighbor keeps full content");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
