@@ -253,16 +253,16 @@ npm run eval:multi
 ```
 
 On the bundled gold set (auth change, static-site review, JavaScript, Python,
-TypeScript, Go, and Rust service/test fixes, plus a precision case with decoy
-modules), the current engine measures:
+TypeScript, Go, and Rust service/test fixes, plus precision (decoy modules)
+and spec-supersession cases), the current engine measures:
 
 | Metric | Result |
 | --- | --- |
-| Cases passed | 8 / 8 (100%) |
+| Cases passed | 9 / 9 (100%) |
 | Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
-| Whole-workspace context reduction | 82% average |
+| Whole-workspace context reduction | 83% average |
 
 These are the only quality numbers Context Delta claims, and they are
 reproducible from a clean checkout with the command above. Token reduction is

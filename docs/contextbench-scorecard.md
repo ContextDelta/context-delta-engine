@@ -6,13 +6,13 @@ _Reproduce: `npm run contextbench`. This file is generated; do not edit by hand.
 
 | Metric | Result |
 | --- | --- |
-| Cases | 8 |
-| Passed | 8 / 8 (100%) |
+| Cases | 9 |
+| Passed | 9 / 9 (100%) |
 | Impact coverage (avg) | 100% |
 | Omission rate (avg) | 0% |
-| Useful-context density (avg) | 95.5% |
-| Whole-workspace reduction (avg) | 82.5% |
-| Avg packet size | 2413 tokens |
+| Useful-context density (avg) | 96% |
+| Whole-workspace reduction (avg) | 83% |
+| Avg packet size | 2415 tokens |
 
 ## Per case
 
@@ -26,6 +26,7 @@ _Reproduce: `npm run contextbench`. This file is generated; do not edit by hand.
 | go-billing-validation | Go · module-aware | pass | 100% | 0% | 100% | 0 |
 | ts-inventory-reorder-precision | TypeScript · precision (decoys) | pass | 100% | 0% | 90% | 0 |
 | rust-billing-validation | Rust · mod/use crate | pass | 100% | 0% | 90% | 0 |
+| ts-pricing-supersession | TypeScript · spec supersession | pass | 100% | 0% | 100% | 0 |
 
 ## What the metrics mean
 
