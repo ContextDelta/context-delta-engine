@@ -78,6 +78,15 @@ versioning once releases begin.
   "packet expansions" display (an unimplemented feature) was replaced by the
   override count in the CLI and dashboard.
 
+- `.gitignore` / `.deltaignore` inheritance during workspace scan (comments,
+  negation, directory and glob patterns).
+- Budget auto-escalation by change volume (focused/balanced/thorough tiers) with
+  an honest per-section token allocation breakdown in the packet budget.
+- Monorepo detection (pnpm, nx, turbo, lerna, npm/yarn workspaces) surfaced in
+  packet workspace metadata.
+- `prepare` npm lifecycle guard so installing/publishing no longer triggers a
+  CLI packet build, while `npm run prepare -- "task"` still works.
+
 ### Security
 
 - Default path exclusions for secrets and local runtime folders.

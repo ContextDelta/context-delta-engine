@@ -2004,3 +2004,64 @@ test("distant graph neighbors are sent as signature skeletons", async () => {
     await fs.rm(workspace, { recursive: true, force: true });
   }
 });
+
+// --- Ignore inheritance, budget auto-escalation, monorepo detection ---
+
+test("compileIgnore/isIgnored honor dirs, globs, anchors, and negation", async () => {
+  const { compileIgnore, isIgnored } = await import("../packages/engine/src/ignore.js");
+  const rules = compileIgnore("build/\n*.log\n/secret.txt\n**/cache\n!keep.log\n");
+  assert.equal(isIgnored("build/out.js", rules), true);
+  assert.equal(isIgnored("src/app.log", rules), true);
+  assert.equal(isIgnored("keep.log", rules), false);
+  assert.equal(isIgnored("secret.txt", rules), true);
+  assert.equal(isIgnored("a/b/cache/x.js", rules), true);
+  assert.equal(isIgnored("src/app.ts", rules), false);
+});
+
+test("scanWorkspace respects a .deltaignore file", async () => {
+  await withWorkspace("cd-ignore-", {
+    ".deltaignore": "generated/\n*.snap\n",
+    "src/app.ts": "export const x = 1;\n",
+    "src/app.snap": "snapshot data\n",
+    "generated/big.ts": "export const big = 1;\n"
+  }, async (ws) => {
+    const scan = await scanWorkspace(ws);
+    const paths = scan.files.map((f) => f.path);
+    assert.ok(paths.includes("src/app.ts"), "normal file kept");
+    assert.ok(!paths.includes("src/app.snap"), "*.snap ignored");
+    assert.ok(!paths.some((p) => p.startsWith("generated/")), "generated/ ignored");
+  });
+});
+
+test("budget auto-escalates with change volume", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-budget-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    for (let i = 0; i < 12; i += 1) await write(`src/mod${i}.ts`, `export const v${i} = ${i};\n`);
+    const scan = await scanWorkspace(workspace);
+    await writeSnapshot(workspace, scan.files);
+    for (let i = 0; i < 12; i += 1) await fs.appendFile(path.join(workspace, `src/mod${i}.ts`), `export const extra${i} = ${i};\n`);
+
+    const { packet } = await buildContextPacket({ task: "refactor modules", updateSnapshot: false, workspaceRoot: workspace });
+    assert.equal(packet.budget.tier, "thorough", `12 changed files should escalate to thorough; got ${packet.budget.tier}`);
+    assert.equal(packet.budget.auto_escalated, true);
+    assert.ok(packet.budget.allocation && Number.isFinite(packet.budget.allocation.changed), "allocation present");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("monorepo layout is detected and surfaced", async () => {
+  await withWorkspace("cd-mono-", {
+    "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n",
+    "packages/a/index.ts": "export const a = 1;\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "touch package a", updateSnapshot: false, workspaceRoot: ws });
+    assert.equal(packet.workspace.monorepo.detected, true);
+    assert.equal(packet.workspace.monorepo.tool, "pnpm");
+  });
+});

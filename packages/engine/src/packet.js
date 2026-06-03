@@ -1,8 +1,10 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 import path from "node:path";
 import {
   PACKET_SCHEMA_VERSION,
   createStableId,
+  estimateTokensForText,
   nowIso
 } from "../../shared/src/index.js";
 import { isPathExcluded, loadConfig } from "./config.js";
@@ -72,6 +74,15 @@ export async function buildContextPacket(options) {
       (changedPath) => !isPathExcluded(changedPath, config)
     )
   );
+  // Auto-escalate the token budget by how much actually changed: a 1-file fix
+  // and a 15-file refactor legitimately need different budgets, so the pressure
+  // signal should track task size instead of flagging large diffs as over budget.
+  // Only count a real delta (git status or a snapshot baseline) — on a first run
+  // with no baseline the "changes" are only inferred, so we don't escalate.
+  const hasRealDelta = git.available || snapshot.hasSnapshot;
+  const budgetTier = resolveBudgetTier(limits.targetTokens, hasRealDelta ? changedPaths.size : 0);
+  const monorepo = await detectMonorepo(scan.files, workspaceRoot);
+
   const specKit = detectSpecKit(eligibleFiles, {
     branch: git.branch,
     changedPaths,
@@ -278,7 +289,9 @@ export async function buildContextPacket(options) {
     created_at: nowIso(),
     budget: {
       mode: config.mode,
-      target_tokens: limits.targetTokens
+      tier: budgetTier.tier,
+      auto_escalated: budgetTier.autoEscalated,
+      target_tokens: budgetTier.targetTokens
     },
     delivery: {
       target: options.target ?? "local-cli"
@@ -315,6 +328,7 @@ export async function buildContextPacket(options) {
         changed_paths_count: changedPaths.size,
         strategy: git.available ? "git-status" : snapshot.strategy
       },
+      monorepo,
       root: workspaceRoot,
       scanned_files_count: scan.files.length
     }
@@ -327,12 +341,13 @@ export async function buildContextPacket(options) {
   redacted.metrics = buildPacketMetrics(redacted, scan.files, config.baseline, config.targetModel);
   redacted.budget = {
     ...redacted.budget,
+    allocation: buildBudgetAllocation(redacted),
     packet_tokens_estimate: redacted.metrics.packet_tokens_estimate,
-    pressure: getBudgetPressure(redacted.metrics.packet_tokens_estimate, limits.targetTokens)
+    pressure: getBudgetPressure(redacted.metrics.packet_tokens_estimate, budgetTier.targetTokens)
   };
   redacted.warnings = [
     ...redacted.warnings,
-    ...buildBudgetWarnings(redacted.metrics.packet_tokens_estimate, limits.targetTokens)
+    ...buildBudgetWarnings(redacted.metrics.packet_tokens_estimate, budgetTier.targetTokens)
   ];
   redacted.summary = buildSummary(redacted);
   redacted.id = createPacketId(redacted);
@@ -555,6 +570,61 @@ function buildBudgetWarnings(packetTokensEstimate, targetTokens) {
       type: "budget-over-target"
     }
   ];
+}
+
+// Raises the budget ceiling with change volume so a large, legitimate diff is
+// not flagged as over budget. Tiers mirror common presets; the configured
+// target is treated as a floor, never lowered.
+// Detects common monorepo layouts so the packet can report the workspace shape.
+// Lightweight metadata for now (used by surfaces and future per-package scoping).
+async function detectMonorepo(files, root) {
+  const has = (name) => files.some((file) => file.path === name);
+  let tool = null;
+  if (has("pnpm-workspace.yaml")) tool = "pnpm";
+  else if (has("nx.json")) tool = "nx";
+  else if (has("turbo.json")) tool = "turbo";
+  else if (has("lerna.json")) tool = "lerna";
+
+  let packages = [];
+  try {
+    const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+    const workspaces = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces?.packages ?? [];
+    if (workspaces.length) {
+      packages = workspaces;
+      if (!tool) tool = "npm-workspaces";
+    }
+  } catch {
+    // No root package.json or unparseable — not an npm workspace.
+  }
+
+  return { detected: Boolean(tool), packages: packages.slice(0, 20), tool: tool ?? null };
+}
+
+function resolveBudgetTier(baseTarget, changedCount) {
+  const base = baseTarget ?? 12_000;
+  if (changedCount >= 10) {
+    return { autoEscalated: base < 16_000, targetTokens: Math.max(base, 16_000), tier: "thorough" };
+  }
+  if (changedCount >= 5) {
+    return { autoEscalated: base < 12_000, targetTokens: Math.max(base, 12_000), tier: "balanced" };
+  }
+  return { autoEscalated: false, targetTokens: base, tier: "focused" };
+}
+
+// Honest, per-packet token allocation across sections — where the delivered
+// budget actually went. More transparent than fixed budget slots.
+function buildBudgetAllocation(packet) {
+  const tokensOf = (item) =>
+    Number.isFinite(item.tokens_estimate)
+      ? item.tokens_estimate
+      : estimateTokensForText(typeof item.content === "string" ? item.content : "");
+  const sum = (items) => (items ?? []).reduce((total, item) => total + tokensOf(item), 0);
+  return {
+    changed: sum(packet.changed_artifacts),
+    constraints: sum(packet.governing_constraints),
+    evidence: sum(packet.supporting_evidence),
+    neighbors: sum(packet.impacted_neighbors)
+  };
 }
 
 function getBudgetPressure(packetTokensEstimate, targetTokens) {
