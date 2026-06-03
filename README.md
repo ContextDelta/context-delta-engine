@@ -256,10 +256,10 @@ modules), the current engine measures:
 | Metric | Result |
 | --- | --- |
 | Cases passed | 7 / 7 (100%) |
-| Useful-context density | 94% average |
+| Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
-| Whole-workspace context reduction | 80% average |
+| Whole-workspace context reduction | 82% average |
 
 These are the only quality numbers Context Delta claims, and they are
 reproducible from a clean checkout with the command above. Token reduction is

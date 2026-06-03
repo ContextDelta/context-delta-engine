@@ -125,7 +125,8 @@ export async function buildContextPacket(options) {
   const rankedImpacted = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
     excludeKinds: ["instruction", "spec", "test"],
     index: relevanceIndex,
-    limit: limits.impacted
+    limit: limits.impacted,
+    requireSignal: true
   }).filter((item) => !changedPaths.has(item.file.path));
 
   const rankedInstructions = pickRankedFiles(eligibleFiles, keywords, changedPaths, {

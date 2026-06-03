@@ -40,7 +40,7 @@ import {
 } from "../packages/engine/src/index.js";
 
 import { estimateTokensForText, getTokenizerInfo, resolveEncoding } from "../packages/shared/src/index.js";
-import { scoreFile } from "../packages/engine/src/ranking.js";
+import { scoreFile, hasRelevanceSignal } from "../packages/engine/src/ranking.js";
 import { buildRelevanceIndex, tokenizeIdentifier } from "../packages/engine/src/relevance.js";
 import { buildInstructionWarnings } from "../packages/engine/src/instructions.js";
 
@@ -1822,4 +1822,54 @@ test("manual override metric reflects pins and excludes, and expansions field is
   const summary = await readMetricsSummary(workspace);
   assert.ok(summary.manual_overrides >= 2, `expected >= 2 overrides, got ${summary.manual_overrides}`);
   assert.ok(!("packet_expansions" in summary), "defunct packet_expansions should not be emitted");
+});
+
+// --- Impacted-neighbor signal filter (locks in the precision improvement) ---
+
+test("hasRelevanceSignal distinguishes real relevance from the bare kind floor", () => {
+  const index = {
+    byPath: new Map([
+      ["match-symbol.ts", { symbolTerms: new Set(["reorder"]), termCounts: new Map() }],
+      ["match-content.ts", { symbolTerms: new Set(), termCounts: new Map([["reorder", 1]]) }],
+      ["decoy.ts", { symbolTerms: new Set(), termCounts: new Map() }]
+    ]),
+    idfFor: () => 1
+  };
+  const mk = (p) => ({ path: p, kind: "source", textLike: true, tooLarge: false });
+  const keywords = ["reorder"];
+  const empty = new Set();
+
+  assert.equal(hasRelevanceSignal(mk("src/reorder.ts"), keywords, empty, index), true, "path match");
+  assert.equal(hasRelevanceSignal(mk("match-symbol.ts"), keywords, empty, index), true, "symbol match");
+  assert.equal(hasRelevanceSignal(mk("match-content.ts"), keywords, empty, index), true, "content match");
+  assert.equal(hasRelevanceSignal(mk("decoy.ts"), keywords, empty, index), false, "no signal");
+  assert.equal(hasRelevanceSignal(mk("decoy.ts"), keywords, new Set(["decoy.ts"]), index), true, "changed file");
+});
+
+test("impacted neighbors exclude unrelated same-kind decoy modules", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-precision-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    await write("src/reorder.ts", "export function reorderThreshold(stock, min) { return stock <= min; }\n");
+    await write("src/stock.ts", 'import { reorderThreshold } from "./reorder";\nexport const flag = (s, m) => reorderThreshold(s, m);\n');
+    // Decoys: same kind, unrelated to the task -> must not be surfaced.
+    await write("src/billing.ts", "export function invoiceTotal(rows) { return rows.length; }\n");
+    await write("src/telemetry.ts", "export function emitEvent(name) { return name; }\n");
+
+    const { packet } = await buildContextPacket({
+      task: "fix the stock reorder threshold",
+      updateSnapshot: false,
+      workspaceRoot: workspace
+    });
+
+    const impacted = packet.impacted_neighbors.map((item) => item.path);
+    assert.ok(!impacted.includes("src/billing.ts"), `decoy billing leaked: ${JSON.stringify(impacted)}`);
+    assert.ok(!impacted.includes("src/telemetry.ts"), `decoy telemetry leaked: ${JSON.stringify(impacted)}`);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
 });
