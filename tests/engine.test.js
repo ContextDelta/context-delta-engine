@@ -2126,3 +2126,41 @@ test("a delivered-token policy ceiling produces a violation and warning", async 
     assert.ok(packet.warnings.some((w) => w.type === "policy-violation"));
   });
 });
+
+// --- Packet format contract (C4) ---
+
+test("a freshly built packet satisfies the packet contract", async () => {
+  const { validatePacket } = await import("../packages/engine/src/packet-schema.js");
+  await withWorkspace("cd-schema-", {
+    "src/auth/service.ts": "export function rotate(token) { return token; }\n",
+    "tests/auth/service.test.ts": "import { rotate } from '../../src/auth/service';\ntest('rotate', () => { expect(rotate('a')).toBe('a'); });\n",
+    "specs/auth/spec.md": "# Auth Spec\n\n## Requirement\n\nRotate tokens.\n",
+    "AGENTS.md": "# Agent Instructions\n\nCover changes with tests.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "rotate auth tokens", updateSnapshot: false, workspaceRoot: ws });
+    const { valid, errors } = validatePacket(packet);
+    assert.ok(valid, `packet should satisfy the contract; errors: ${JSON.stringify(errors)}`);
+  });
+});
+
+test("validatePacket rejects a malformed packet", async () => {
+  const { validatePacket } = await import("../packages/engine/src/packet-schema.js");
+  const bad = validatePacket({ schema_version: "0.1" });
+  assert.equal(bad.valid, false);
+  assert.ok(bad.errors.some((e) => e.includes("missing required field")));
+
+  const inconsistent = validatePacket({
+    schema_version: "0.1", id: "x", created_at: "now",
+    intent: { task: "t", keywords: [] },
+    changed_artifacts: [], supporting_evidence: [], governing_constraints: [], impacted_neighbors: [],
+    excluded: [], warnings: [],
+    budget: { target_tokens: 100, pressure: "low" },
+    delivery: {}, controls: {}, spec_kit: {}, spec_review: {}, security: {},
+    summary: { included_files_count: 0, excluded_files_count: 0 },
+    workspace: { root: "/x" },
+    compliance: { within_token_ceiling: true, violations: [] },
+    metrics: { delivered_tokens_estimate: 5000, baseline_tokens_estimate: 100, context_reduction_percent: 50, packet_tokens_estimate: 10, token_count_method: "exact_tokenizer" }
+  });
+  assert.equal(inconsistent.valid, false, "delivered > baseline must be rejected");
+  assert.ok(inconsistent.errors.some((e) => e.includes("exceeds baseline")));
+});

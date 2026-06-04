@@ -100,6 +100,10 @@ versioning once releases begin.
   redaction status, deprecated specs excluded, and an optional
   `policy.maxDeliveredTokens` hard ceiling with violation flagging — making the
   packet an audit artifact.
+- Packet format contract: a published JSON Schema (`docs/packet.schema.json`)
+  plus a dependency-free validator (`validatePacket`, `npm run validate:packet`,
+  in `release:check`) that also enforces invariants (delivered ≤ baseline,
+  reduction in range), so the packet structure cannot drift unnoticed.
 
 ### Security
 

@@ -1,4 +1,5 @@
 export { buildContextPacket, getUniqueIncludedItems } from "./packet.js";
+export { validatePacket } from "./packet-schema.js";
 export { renderReplayPrompt, writePacketApproval } from "./approval.js";
 export {
   renderEvalMarkdown,

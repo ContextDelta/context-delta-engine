@@ -539,6 +539,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [Scaling](docs/scaling.md)
 - [Go to market](docs/go-to-market.md)
 - [Architecture](docs/architecture.md)
+- [Packet format & schema](docs/packet-format.md)
 - [Edge cases](docs/edge-cases.md)
 - [Research notes](docs/research-notes.md)
 
