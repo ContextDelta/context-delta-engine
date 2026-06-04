@@ -20,6 +20,7 @@ import {
   pickRankedFiles,
   scoreFile
 } from "./ranking.js";
+import { loadFeedbackBoosts } from "./feedback.js";
 import { redactPacket } from "./redaction.js";
 import { buildRelevanceIndex } from "./relevance.js";
 import { readFileSnippet, scanWorkspace } from "./scanner.js";
@@ -101,6 +102,12 @@ export async function buildContextPacket(options) {
     maxChars: limits.snippetChars
   });
 
+  // Feedback flywheel: paths this workspace previously needed for a similar task
+  // (recorded from drift misses). Boost them so a repeated miss becomes a hit.
+  const feedbackBoosts = await loadFeedbackBoosts(workspaceRoot, keywords, {
+    enabled: config.feedback?.enabled
+  });
+
   const changedArtifacts = await buildChangedArtifacts(
     workspaceRoot,
     eligibleFiles,
@@ -135,6 +142,7 @@ export async function buildContextPacket(options) {
   );
 
   const rankedImpacted = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
+    boostPaths: feedbackBoosts,
     excludeKinds: ["instruction", "spec", "test"],
     index: relevanceIndex,
     limit: limits.impacted,
@@ -239,7 +247,7 @@ export async function buildContextPacket(options) {
     ...(await Promise.all(
       rankedImpacted
         .filter((item) => !graphNeighborPaths.has(item.file.path))
-        .map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex))
+        .map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex, feedbackBoosts))
     ))
   ]).slice(0, limits.impacted);
 
@@ -464,12 +472,12 @@ function extractChangedSymbols(changedArtifacts) {
   return [...symbols].slice(0, 40);
 }
 
-async function fileToPacketItem(file, changedPaths, keywords, limits, index = null) {
+async function fileToPacketItem(file, changedPaths, keywords, limits, index = null, boostPaths = null) {
   return {
     content: await readFileSnippet(file, { maxChars: limits.snippetChars }),
     kind: file.kind,
     path: file.path,
-    reason: explainFileInclusion(file, changedPaths, keywords, index),
+    reason: explainFileInclusion(file, changedPaths, keywords, index, boostPaths),
     type: file.kind
   };
 }

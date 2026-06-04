@@ -43,6 +43,11 @@ versioning once releases begin.
   no embeddings): the ranker reads file content and declared symbols (JS/TS,
   Python, Go) and weights rare task terms higher, replacing the hardcoded
   auth-domain keyword regex with relevance derived from the repo itself.
+- Local feedback flywheel (`feedback.js`): drift misses (files the agent edited
+  that the packet omitted) are recorded locally as `(task keywords → paths)` and
+  boost those paths on a future overlapping task, so a repeated miss becomes a
+  hit. Privacy-safe (paths + keywords only), capped, opt-out via
+  `feedback.enabled` — it improves with the user's own usage, no external data.
 - Signature-skeleton compression (`compression.js`): distant graph neighbors
   (2+ hops from the change) are sent as declaration/signature skeletons with
   bodies stripped — deterministic, model-free — falling back to full content

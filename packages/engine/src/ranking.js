@@ -54,12 +54,18 @@ export function derivePathKeywords(paths) {
   ];
 }
 
-export function scoreFile(file, keywords, changedPaths = new Set(), index = null) {
+export function scoreFile(file, keywords, changedPaths = new Set(), index = null, boostPaths = null) {
   let score = 0;
   const lowerPath = file.path.toLowerCase();
   const basename = path.posix.basename(lowerPath);
 
   if (changedPaths.has(file.path)) score += 100;
+  // Feedback boost: this file was previously edited for a similar task but the
+  // packet missed it. Surface it proactively this time (weighted by how strongly
+  // the prior task's keywords overlap the current one).
+  if (boostPaths && boostPaths.has(file.path)) {
+    score += 20 + Math.min(boostPaths.get(file.path) ?? 1, 4) * 10;
+  }
   if (file.kind === "instruction") score += 30;
   if (file.kind === "spec") score += 20;
   if (file.kind === "test") score += 12;
@@ -98,6 +104,7 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
   const excludeKinds = new Set(options.excludeKinds ?? []);
   const includeKinds = options.includeKinds ? new Set(options.includeKinds) : null;
   const index = options.index ?? null;
+  const boostPaths = options.boostPaths ?? null;
   // When set, only surface files that have an actual task signal (changed,
   // path/name, content, or symbol match) rather than the bare file-kind floor.
   // Used for impacted neighbors so unrelated same-kind modules don't fill the
@@ -108,10 +115,10 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
     .filter((file) => file.textLike && !file.tooLarge)
     .filter((file) => !excludeKinds.has(file.kind))
     .filter((file) => !includeKinds || includeKinds.has(file.kind))
-    .filter((file) => !requireSignal || hasRelevanceSignal(file, keywords, changedPaths, index))
+    .filter((file) => !requireSignal || hasRelevanceSignal(file, keywords, changedPaths, index, boostPaths))
     .map((file) => ({
       file,
-      score: scoreFile(file, keywords, changedPaths, index)
+      score: scoreFile(file, keywords, changedPaths, index, boostPaths)
     }))
     .filter((item) => item.score > 0)
     .sort((a, b) => {
@@ -124,8 +131,9 @@ export function pickRankedFiles(files, keywords, changedPaths, options = {}) {
 // True when the task actually touches this file — changed, a path/name match, or
 // (with an index) a content or declared-symbol match. Distinguishes real
 // relevance from the baseline file-kind weight every file of a kind receives.
-export function hasRelevanceSignal(file, keywords, changedPaths = new Set(), index = null) {
+export function hasRelevanceSignal(file, keywords, changedPaths = new Set(), index = null, boostPaths = null) {
   if (changedPaths.has(file.path)) return true;
+  if (boostPaths && boostPaths.has(file.path)) return true;
   const lowerPath = file.path.toLowerCase();
   const entry = index?.byPath?.get(file.path) ?? null;
   for (const keyword of keywords) {
@@ -135,8 +143,11 @@ export function hasRelevanceSignal(file, keywords, changedPaths = new Set(), ind
   return false;
 }
 
-export function explainFileInclusion(file, changedPaths, keywords, index = null) {
+export function explainFileInclusion(file, changedPaths, keywords, index = null, boostPaths = null) {
   if (changedPaths.has(file.path)) return "Changed in the current workspace delta";
+  if (boostPaths && boostPaths.has(file.path)) {
+    return "Previously needed for a similar task (learned from drift feedback)";
+  }
   if (file.kind === "instruction") return "Repository or agent instruction that may govern the task";
   if (file.kind === "test") return "Nearby test or behavior check related to the task";
   if (file.kind === "spec") return "Spec-driven artifact related to the task";

@@ -2231,3 +2231,51 @@ test("packet assembly stays within a generous time budget (regression guard)", a
     await fs.rm(workspace, { recursive: true, force: true });
   }
 });
+
+// --- Feedback flywheel: learn from drift misses to improve future packets (C2) ---
+
+test("feedback boosts apply only to overlapping-keyword tasks", async () => {
+  const { recordFeedback, loadFeedbackBoosts } = await import("../packages/engine/src/feedback.js");
+  await withWorkspace("cd-fb-", { "README.md": "# x\n" }, async (ws) => {
+    await recordFeedback(ws, { task: "add email retry to notifications", missedPaths: ["src/util/backoff.ts"] });
+    const related = await loadFeedbackBoosts(ws, ["retry", "notifications", "email"]);
+    assert.ok(related.has("src/util/backoff.ts"), "boost applies to a related task");
+    const unrelated = await loadFeedbackBoosts(ws, ["pricing", "discount", "invoice"]);
+    assert.ok(!unrelated.has("src/util/backoff.ts"), "boost does not leak to unrelated tasks");
+    const optedOut = await loadFeedbackBoosts(ws, ["retry"], { enabled: false });
+    assert.equal(optedOut.size, 0, "opt-out disables boosts");
+  });
+});
+
+test("a recorded drift miss is surfaced in a later similar packet", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-fb-e2e-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    await write("src/notifications/service.ts", "export function notify() { return 1; }\n");
+    await write("src/util/backoff.ts", "export function wait(ms) { return ms; }\n");
+    await write("AGENTS.md", "# Agent Instructions\n");
+    const scan = await scanWorkspace(workspace);
+    await writeSnapshot(workspace, scan.files);
+
+    const before = getUniqueIncludedItems(
+      (await buildContextPacket({ task: "add email retry to notifications", updateSnapshot: false, workspaceRoot: workspace })).packet
+    ).map((i) => i.path);
+    assert.ok(!before.includes("src/util/backoff.ts"), "baseline does not include the unrelated-by-name file");
+
+    const { recordFeedback } = await import("../packages/engine/src/feedback.js");
+    await recordFeedback(workspace, { task: "add email retry to notifications", missedPaths: ["src/util/backoff.ts"] });
+
+    const after = getUniqueIncludedItems(
+      (await buildContextPacket({ task: "add retry to notifications service", updateSnapshot: false, workspaceRoot: workspace })).packet
+    );
+    const item = after.find((i) => i.path === "src/util/backoff.ts");
+    assert.ok(item, "after feedback, the previously-missed file is included");
+    assert.match(item.reason, /learned from drift feedback/);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});

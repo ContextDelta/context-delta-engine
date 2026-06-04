@@ -1,8 +1,10 @@
+import { loadConfig } from "./config.js";
+import { recordFeedback } from "./feedback.js";
 import { getGitState } from "./git.js";
 import { readLatestPacket } from "./history.js";
 import { inferWorkspaceIntent } from "./intent.js";
 
-export async function reviewContextDrift(workspaceRoot) {
+export async function reviewContextDrift(workspaceRoot, options = {}) {
   const packet = await readLatestPacket(workspaceRoot);
   const git = await getGitState(workspaceRoot);
   const currentIntent = await inferWorkspaceIntent(workspaceRoot);
@@ -50,6 +52,21 @@ export async function reviewContextDrift(workspaceRoot) {
   }
   if (!git.available) {
     recommendations.push("Git was unavailable, so drift review could not compare current git changes.");
+  }
+
+  // Feedback flywheel: files changed outside the packet that were NOT explicitly
+  // excluded are genuine ranking misses. Record them (locally) so a future task
+  // with overlapping keywords surfaces them proactively.
+  if (options.recordFeedback !== false && git.available) {
+    const genuineMisses = [...new Set(outsidePacket)].filter((changedPath) => !excludedPaths.has(changedPath));
+    if (genuineMisses.length) {
+      const config = await loadConfig(workspaceRoot).catch(() => ({}));
+      await recordFeedback(
+        workspaceRoot,
+        { missedPaths: genuineMisses, task: packetTask },
+        { enabled: config.feedback?.enabled }
+      );
+    }
   }
 
   return {
