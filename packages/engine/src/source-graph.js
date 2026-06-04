@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { estimateTokensForText } from "../../shared/src/index.js";
+import { extractSignatures } from "./compression.js";
 import { readFileSnippet } from "./scanner.js";
 
 // Catches static imports, bare side-effect imports, re-exports (export ... from),
@@ -9,7 +10,7 @@ import { readFileSnippet } from "./scanner.js";
 const IMPORT_RE =
   /(?:\b(?:import|export)\b[^'"`;]*?\bfrom\s*|^\s*import\s*|\brequire\s*\(\s*|\bimport\s*\(\s*)["'`]([^"'`]+)["'`]/gm;
 const SYMBOL_RE =
-  /\b(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var|def)\s+([A-Za-z_$][\w$]*)/g;
+  /\b(?:export\s+)?(?:pub\s+)?(?:async\s+)?(?:function|class|interface|type|const|let|var|def|fn|struct|trait|enum|module|record)\s+([A-Za-z_$][\w$]*)/g;
 
 export async function findSourceGraphNeighbors(files, changedPaths, keywords, options = {}) {
   const limit = options.limit ?? 8;
@@ -92,14 +93,24 @@ export async function findSourceGraphNeighbors(files, changedPaths, keywords, op
     }
 
     if (score <= 0) continue;
-    const content = await readFileSnippet(file, { maxChars: snippetChars });
+    const full = await readFileSnippet(file, { maxChars: snippetChars });
+    // Distant impact (2+ hops from the change) rarely needs full bodies — send a
+    // signature skeleton instead, falling back to the full snippet when stripping
+    // wouldn't help. Direct impact (hop 1) and same-dir/keyword neighbors keep
+    // full content.
+    const distance = transitive?.minHop ?? null;
+    const compressed = options.compressDistant !== false && distance !== null && distance >= 2
+      ? extractSignatures(full, file.path)
+      : null;
+    const content = compressed ?? full;
     neighbors.push({
       content,
-      graph_distance: transitive?.minHop ?? null,
+      compression: compressed ? "signatures" : "full",
+      graph_distance: distance,
       graph_reason: reasons,
       kind: file.kind,
       path: file.path,
-      reason: `Source graph neighbor: ${reasons.join("; ")}.`,
+      reason: `Source graph neighbor: ${reasons.join("; ")}${compressed ? " (signatures only)" : ""}.`,
       score: Number(score.toFixed(2)),
       tokens_estimate: estimateTokensForText(content),
       type: "graph_neighbor"
@@ -228,13 +239,117 @@ function resolveGoImports(content, byPath, goModule) {
   return [...resolved];
 }
 
-// Language-aware import resolution. Python resolves very differently from the
-// JS/TS family (dotted module paths, relative dots, __init__.py packages), so
-// dispatch by extension. Anything else falls back to the JS/TS resolver.
+// Language-aware import resolution. Each language family resolves differently,
+// so dispatch by extension. All resolvers only return paths already in the repo
+// (byPath), so stdlib/third-party imports drop out automatically. Anything
+// unrecognized falls back to the JS/TS resolver.
 function resolveImports(filePath, content, byPath, context = {}) {
   if (filePath.endsWith(".py")) return resolvePythonImports(filePath, content, byPath);
   if (filePath.endsWith(".go")) return resolveGoImports(content, byPath, context.goModule);
+  if (filePath.endsWith(".rs")) return resolveRustImports(filePath, content, byPath);
+  if (filePath.endsWith(".java")) return resolveJavaImports(content, byPath);
+  if (filePath.endsWith(".rb")) return resolveRubyImports(filePath, content, byPath);
+  if (filePath.endsWith(".php")) return resolvePhpImports(filePath, content, byPath);
   return resolveJsImports(filePath, content, byPath);
+}
+
+// Rust: `mod x;` pulls a sibling x.rs or x/mod.rs; `use crate::a::b` resolves
+// from the crate's src root, `use super::` from the parent module, `use self::`
+// from the current dir. The final path segment is often a type/fn, so we try the
+// full path and the path with the last segment dropped.
+function resolveRustImports(filePath, content, byPath) {
+  const fileDir = path.posix.dirname(filePath);
+  const crateRoot = filePath.startsWith("src/")
+    ? "src"
+    : filePath.includes("/src/")
+      ? `${filePath.slice(0, filePath.indexOf("/src/"))}/src`
+      : fileDir;
+  const resolved = new Set();
+
+  const tryModule = (baseDir, segments) => {
+    if (!segments.length) return;
+    const base = path.posix.normalize(path.posix.join(baseDir, segments.join("/")));
+    for (const candidate of [`${base}.rs`, `${base}/mod.rs`]) {
+      if (byPath.has(candidate)) resolved.add(candidate);
+    }
+  };
+
+  for (const match of content.matchAll(/^\s*(?:pub\s+)?mod\s+([A-Za-z_]\w*)\s*;/gm)) {
+    tryModule(fileDir, [match[1]]);
+  }
+  for (const match of content.matchAll(/^\s*(?:pub\s+)?use\s+([A-Za-z_][\w:]*)/gm)) {
+    const segments = match[1].split("::").filter(Boolean);
+    const head = segments[0];
+    const body = segments.slice(1);
+    const base = head === "crate" ? crateRoot : head === "super" ? path.posix.dirname(fileDir) : head === "self" ? fileDir : null;
+    if (base === null) continue;
+    tryModule(base, body);
+    if (body.length > 1) tryModule(base, body.slice(0, -1));
+  }
+  return [...resolved];
+}
+
+// Java: `import a.b.Class;` maps to a path ending in a/b/Class.java (source
+// roots vary, e.g. src/main/java), so match by suffix. `import a.b.*;` maps to
+// every .java file in that package directory.
+function resolveJavaImports(content, byPath) {
+  const resolved = new Set();
+  for (const match of content.matchAll(/^\s*import\s+(?:static\s+)?([\w.]+)\s*;/gm)) {
+    const fqn = match[1];
+    if (fqn.endsWith(".*")) {
+      const pkg = fqn.slice(0, -2).split(".").join("/");
+      for (const candidate of byPath.keys()) {
+        if (candidate.endsWith(".java") && path.posix.dirname(candidate).endsWith(pkg)) resolved.add(candidate);
+      }
+      continue;
+    }
+    const suffix = `${fqn.split(".").join("/")}.java`;
+    for (const candidate of byPath.keys()) {
+      if (candidate === suffix || candidate.endsWith(`/${suffix}`)) resolved.add(candidate);
+    }
+  }
+  return [...resolved];
+}
+
+// Ruby: `require_relative` resolves against the file's directory; bare `require`
+// is tried from the repo root and a conventional lib/ layout.
+function resolveRubyImports(filePath, content, byPath) {
+  const fileDir = path.posix.dirname(filePath);
+  const resolved = new Set();
+  for (const match of content.matchAll(/^\s*require_relative\s+['"]([^'"]+)['"]/gm)) {
+    const base = path.posix.normalize(path.posix.join(fileDir, match[1]));
+    const candidate = base.endsWith(".rb") ? base : `${base}.rb`;
+    if (byPath.has(candidate)) resolved.add(candidate);
+  }
+  for (const match of content.matchAll(/^\s*require\s+['"]([^'"]+)['"]/gm)) {
+    for (const candidate of [`${match[1]}.rb`, `lib/${match[1]}.rb`, match[1]]) {
+      if (byPath.has(candidate)) resolved.add(candidate);
+    }
+  }
+  return [...resolved];
+}
+
+// PHP: relative require/include (including the common `__DIR__ . '/x.php'` form)
+// resolves against the file's directory; `use Ns\Class;` maps by PSR-4 suffix
+// to a path ending in Ns/Class.php.
+function resolvePhpImports(filePath, content, byPath) {
+  const fileDir = path.posix.dirname(filePath);
+  const resolved = new Set();
+  for (const match of content.matchAll(
+    /\b(?:require|include)(?:_once)?\s*\(?\s*(?:__DIR__\s*\.\s*)?['"]([^'"]+\.php)['"]/g
+  )) {
+    const spec = match[1].replace(/^\.?\//, "");
+    const base = path.posix.normalize(path.posix.join(fileDir, spec));
+    if (byPath.has(base)) resolved.add(base);
+    if (byPath.has(spec)) resolved.add(spec);
+  }
+  for (const match of content.matchAll(/^\s*use\s+([\w\\]+)\s*;/gm)) {
+    const suffix = `${match[1].replace(/^\\/, "").split("\\").join("/")}.php`;
+    for (const candidate of byPath.keys()) {
+      if (candidate === suffix || candidate.endsWith(`/${suffix}`)) resolved.add(candidate);
+    }
+  }
+  return [...resolved];
 }
 
 function resolveJsImports(filePath, content, byPath) {

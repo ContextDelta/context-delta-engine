@@ -1,4 +1,6 @@
 export { buildContextPacket, getUniqueIncludedItems } from "./packet.js";
+export { validatePacket } from "./packet-schema.js";
+export { loadFeedbackBoosts, recordFeedback } from "./feedback.js";
 export { renderReplayPrompt, writePacketApproval } from "./approval.js";
 export {
   renderEvalMarkdown,

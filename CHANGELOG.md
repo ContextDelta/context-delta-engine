@@ -25,14 +25,37 @@ versioning once releases begin.
   Go import resolution and coverage edges end to end in the eval gate.
 - Precision gold-set case (inventory service with unrelated decoy modules,
   gated on useful-context density) so a ranking regression that pulls in noise
-  fails the eval gate. The bundled set is now seven cases.
+  fails the eval gate.
+- **ContextBench** (`npm run contextbench`): the labeled gold set packaged as a
+  citable, reproducible correctness benchmark (impact coverage, omission rate,
+  useful-context density, forbidden inclusions — token reduction as a secondary
+  signal), with a generated scorecard, a published spec, and a contribution path
+  for new cases.
 - AGENTS.md, CLAUDE.md, Copilot, Cursor, and generic instruction precedence
   with closest-file-wins ordering.
 - Source graph neighbor detection for changed source files.
+- Import-graph resolution for Rust (`mod`/`use crate/super/self`), Java
+  (package-qualified imports), Ruby (`require_relative`), and PHP (relative
+  `require`/`include` and PSR-4 `use`), plus a Rust gold-set case and
+  top-level `tests/` directory recognition. The bundled gold set is now eight
+  cases across seven languages and a precision shape.
 - Content-, symbol-, and IDF-aware relevance ranking (local and deterministic,
   no embeddings): the ranker reads file content and declared symbols (JS/TS,
   Python, Go) and weights rare task terms higher, replacing the hardcoded
   auth-domain keyword regex with relevance derived from the repo itself.
+- Loop compaction correctness: the incremental handoff key is now content-aware,
+  so a file whose content changed between turns is re-sent rather than marked
+  "retained, do not re-request" — the agent never works from stale content across
+  the loop, and a content change is treated as an update, not a removal.
+- Local feedback flywheel (`feedback.js`): drift misses (files the agent edited
+  that the packet omitted) are recorded locally as `(task keywords → paths)` and
+  boost those paths on a future overlapping task, so a repeated miss becomes a
+  hit. Privacy-safe (paths + keywords only), capped, opt-out via
+  `feedback.enabled` — it improves with the user's own usage, no external data.
+- Signature-skeleton compression (`compression.js`): distant graph neighbors
+  (2+ hops from the change) are sent as declaration/signature skeletons with
+  bodies stripped — deterministic, model-free — falling back to full content
+  when stripping wouldn't help. Direct impact keeps full bodies.
 - Packet approval and replay artifacts for reviewable agent handoff.
 - Local HTML report and manager summary exports.
 - MCP stdio server with packet, compact, insight, diff, handoff, eval,
@@ -42,6 +65,16 @@ versioning once releases begin.
   `isError` results and protocol errors use `-32601` / `-32700` codes.
 - Automated multi-host MCP conformance harness (`npm run mcp:conformance`,
   wired into `release:check`) and a published host conformance contract.
+- GitHub Action (`context-packet.yml`) that posts a privacy-safe packet summary
+  on each PR — the working set, exclusions, and token economics, never raw code
+  — making the agent's context a reviewable artifact. Rendered by
+  `npm run pr-comment`.
+- Local performance benchmark (`npm run benchmark`): ~80 ms scan / ~570 ms full
+  packet assembly on a 1,000-file repo, reproducible and model-free.
+- Performance regression guard (`npm run benchmark:assert`) and an in-suite time
+  budget, plus robustness coverage (empty workspaces, binary/oversized/
+  extensionless files, pathological minified lines, unusual ignore patterns) so
+  the engine degrades gracefully and never crashes, hangs, or silently slows.
 - VS Code extension shell with activity bar dashboard, packet view, insight
   view, diff view, manager summary view, handoff copy, and packet item actions.
 - GitHub Pages landing page, supporting static docs, and launch preview
@@ -62,6 +95,32 @@ versioning once releases begin.
   metrics summary, CLI, manager report, and VS Code dashboard. The always-zero
   "packet expansions" display (an unimplemented feature) was replaced by the
   override count in the CLI and dashboard.
+
+- `.gitignore` / `.deltaignore` inheritance during workspace scan (comments,
+  negation, directory and glob patterns).
+- Budget auto-escalation by change volume (focused/balanced/thorough tiers) with
+  an honest per-section token allocation breakdown in the packet budget.
+- Monorepo detection (pnpm, nx, turbo, lerna, npm/yarn workspaces) surfaced in
+  packet workspace metadata.
+- `prepare` npm lifecycle guard so installing/publishing no longer triggers a
+  CLI packet build, while `npm run prepare -- "task"` still works.
+
+- Spec freshness: deprecated/superseded specs are detected and kept out of the
+  packet (with a reason, a warning, and a `spec_review` block), plus a
+  spec-supersession ContextBench case — so stale requirements are not fed to the
+  agent. The gold set is now nine cases.
+- Governance `compliance` block on every packet: policy exclusions, secret
+  redaction status, deprecated specs excluded, and an optional
+  `policy.maxDeliveredTokens` hard ceiling with violation flagging — making the
+  packet an audit artifact.
+- Context contracts: declare required path patterns via `contract.require`; the
+  packet's `compliance.contract` reports satisfied/missing and a missing
+  requirement raises a `contract-violation` warning — a verifiable, build-time
+  guarantee that required context is present, not a silent omission found later.
+- Packet format contract: a published JSON Schema (`docs/packet.schema.json`)
+  plus a dependency-free validator (`validatePacket`, `npm run validate:packet`,
+  in `release:check`) that also enforces invariants (delivered ≤ baseline,
+  reduction in range), so the packet structure cannot drift unnoticed.
 
 ### Security
 

@@ -1,8 +1,10 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 import path from "node:path";
 import {
   PACKET_SCHEMA_VERSION,
   createStableId,
+  estimateTokensForText,
   nowIso
 } from "../../shared/src/index.js";
 import { isPathExcluded, loadConfig } from "./config.js";
@@ -18,9 +20,11 @@ import {
   pickRankedFiles,
   scoreFile
 } from "./ranking.js";
+import { loadFeedbackBoosts } from "./feedback.js";
 import { redactPacket } from "./redaction.js";
 import { buildRelevanceIndex } from "./relevance.js";
 import { readFileSnippet, scanWorkspace } from "./scanner.js";
+import { reviewSpecs } from "./spec-freshness.js";
 import { buildSpecKitWarnings, detectSpecKit, scopeSpecEvidence } from "./spec-kit.js";
 import { findCoveringTests, findSourceGraphNeighbors } from "./source-graph.js";
 import { detectSnapshotChanges, writeSnapshot } from "./snapshot.js";
@@ -72,6 +76,15 @@ export async function buildContextPacket(options) {
       (changedPath) => !isPathExcluded(changedPath, config)
     )
   );
+  // Auto-escalate the token budget by how much actually changed: a 1-file fix
+  // and a 15-file refactor legitimately need different budgets, so the pressure
+  // signal should track task size instead of flagging large diffs as over budget.
+  // Only count a real delta (git status or a snapshot baseline) — on a first run
+  // with no baseline the "changes" are only inferred, so we don't escalate.
+  const hasRealDelta = git.available || snapshot.hasSnapshot;
+  const budgetTier = resolveBudgetTier(limits.targetTokens, hasRealDelta ? changedPaths.size : 0);
+  const monorepo = await detectMonorepo(scan.files, workspaceRoot);
+
   const specKit = detectSpecKit(eligibleFiles, {
     branch: git.branch,
     changedPaths,
@@ -87,6 +100,12 @@ export async function buildContextPacket(options) {
   // actually contain and define, not just their paths.
   const relevanceIndex = await buildRelevanceIndex(eligibleFiles, {
     maxChars: limits.snippetChars
+  });
+
+  // Feedback flywheel: paths this workspace previously needed for a similar task
+  // (recorded from drift misses). Boost them so a repeated miss becomes a hit.
+  const feedbackBoosts = await loadFeedbackBoosts(workspaceRoot, keywords, {
+    enabled: config.feedback?.enabled
   });
 
   const changedArtifacts = await buildChangedArtifacts(
@@ -123,6 +142,7 @@ export async function buildContextPacket(options) {
   );
 
   const rankedImpacted = pickRankedFiles(eligibleFiles, keywords, changedPaths, {
+    boostPaths: feedbackBoosts,
     excludeKinds: ["instruction", "spec", "test"],
     index: relevanceIndex,
     limit: limits.impacted,
@@ -168,7 +188,24 @@ export async function buildContextPacket(options) {
 
   // Spec Kit scoping: keep the active feature's spec sections, demote the rest.
   const specScope = scopeSpecEvidence(specKit, supportingEvidence);
-  const scopedSupportingEvidence = specScope.kept;
+
+  // Spec freshness: a spec section marked deprecated/superseded is a stale
+  // requirement — keep it out of the packet (the agent should never plan from
+  // it) and report why.
+  const candidateSpecPaths = new Set(
+    specScope.kept.filter((item) => item.type === "spec_section").map((item) => item.path)
+  );
+  const specReview = await reviewSpecs(
+    eligibleFiles.filter((file) => file.kind === "spec" && candidateSpecPaths.has(file.path)),
+    { snippetChars: limits.snippetChars }
+  );
+  const deprecatedSpecPaths = new Set(specReview.deprecated.map((entry) => entry.path));
+  const scopedSupportingEvidence = specScope.kept.filter((item) => !deprecatedSpecPaths.has(item.path));
+  const deprecatedSpecExclusions = specReview.deprecated.map((entry) => ({
+    kind: "spec",
+    path: entry.path,
+    reason: `Spec marked ${entry.status}; excluded as a stale requirement.`
+  }));
 
   const relevantPaths = new Set([
     ...changedArtifacts.map((item) => item.path),
@@ -210,7 +247,7 @@ export async function buildContextPacket(options) {
     ...(await Promise.all(
       rankedImpacted
         .filter((item) => !graphNeighborPaths.has(item.file.path))
-        .map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex))
+        .map((item) => fileToPacketItem(item.file, changedPaths, keywords, limits, relevanceIndex, feedbackBoosts))
     ))
   ]).slice(0, limits.impacted);
 
@@ -243,6 +280,7 @@ export async function buildContextPacket(options) {
   );
 
   const excluded = [
+    ...deprecatedSpecExclusions,
     ...policyExcluded.map((file) => ({
       kind: file.kind,
       path: file.path,
@@ -265,7 +303,11 @@ export async function buildContextPacket(options) {
   const warnings = [
     ...buildWarnings({ config, git, scan, snapshot, supportingEvidence: scopedSupportingEvidence }),
     ...buildInstructionWarnings(governingConstraints),
-    ...buildSpecKitWarnings(specKit)
+    ...buildSpecKitWarnings(specKit),
+    ...specReview.deprecated.map((entry) => ({
+      message: `Spec ${entry.path} is marked ${entry.status}; kept out of the packet as a stale requirement.`,
+      type: "stale-spec"
+    }))
   ];
 
   const packetDraft = {
@@ -278,7 +320,9 @@ export async function buildContextPacket(options) {
     created_at: nowIso(),
     budget: {
       mode: config.mode,
-      target_tokens: limits.targetTokens
+      tier: budgetTier.tier,
+      auto_escalated: budgetTier.autoEscalated,
+      target_tokens: budgetTier.targetTokens
     },
     delivery: {
       target: options.target ?? "local-cli"
@@ -296,6 +340,9 @@ export async function buildContextPacket(options) {
       task
     },
     schema_version: PACKET_SCHEMA_VERSION,
+    spec_review: {
+      deprecated_specs: specReview.deprecated
+    },
     spec_kit: {
       detected: specKit.isSpecKit,
       has_specify_dir: specKit.hasSpecify,
@@ -315,6 +362,7 @@ export async function buildContextPacket(options) {
         changed_paths_count: changedPaths.size,
         strategy: git.available ? "git-status" : snapshot.strategy
       },
+      monorepo,
       root: workspaceRoot,
       scanned_files_count: scan.files.length
     }
@@ -327,12 +375,36 @@ export async function buildContextPacket(options) {
   redacted.metrics = buildPacketMetrics(redacted, scan.files, config.baseline, config.targetModel);
   redacted.budget = {
     ...redacted.budget,
+    allocation: buildBudgetAllocation(redacted),
     packet_tokens_estimate: redacted.metrics.packet_tokens_estimate,
-    pressure: getBudgetPressure(redacted.metrics.packet_tokens_estimate, limits.targetTokens)
+    pressure: getBudgetPressure(redacted.metrics.packet_tokens_estimate, budgetTier.targetTokens)
   };
   redacted.warnings = [
     ...redacted.warnings,
-    ...buildBudgetWarnings(redacted.metrics.packet_tokens_estimate, limits.targetTokens)
+    ...buildBudgetWarnings(redacted.metrics.packet_tokens_estimate, budgetTier.targetTokens)
+  ];
+  // Governance: an auditable record of what policy enforced on this packet —
+  // policy exclusions, secret redactions, deprecated specs kept out, and whether
+  // the delivered context stayed within any configured hard ceiling.
+  redacted.compliance = buildCompliance({
+    config,
+    deprecatedSpecs: specReview.deprecated,
+    deliveredTokens: redacted.metrics.delivered_tokens_estimate,
+    policyExcludedCount: policyExcluded.length,
+    redactionsApplied: redacted.security?.redactions_applied ?? 0
+  });
+  // Context contract: required path patterns the packet MUST satisfy. A missing
+  // requirement is a verifiable, build-time correctness failure — not a silent
+  // omission discovered later.
+  const contract = evaluateContract(getUniqueIncludedItems(redacted), config.contract?.require ?? []);
+  redacted.compliance.contract = contract;
+  redacted.warnings = [
+    ...redacted.warnings,
+    ...redacted.compliance.violations.map((message) => ({ message, type: "policy-violation" })),
+    ...contract.missing.map((pattern) => ({
+      message: `Context contract: required pattern "${pattern}" is not satisfied by any included file.`,
+      type: "contract-violation"
+    }))
   ];
   redacted.summary = buildSummary(redacted);
   redacted.id = createPacketId(redacted);
@@ -412,12 +484,12 @@ function extractChangedSymbols(changedArtifacts) {
   return [...symbols].slice(0, 40);
 }
 
-async function fileToPacketItem(file, changedPaths, keywords, limits, index = null) {
+async function fileToPacketItem(file, changedPaths, keywords, limits, index = null, boostPaths = null) {
   return {
     content: await readFileSnippet(file, { maxChars: limits.snippetChars }),
     kind: file.kind,
     path: file.path,
-    reason: explainFileInclusion(file, changedPaths, keywords, index),
+    reason: explainFileInclusion(file, changedPaths, keywords, index, boostPaths),
     type: file.kind
   };
 }
@@ -555,6 +627,126 @@ function buildBudgetWarnings(packetTokensEstimate, targetTokens) {
       type: "budget-over-target"
     }
   ];
+}
+
+// Raises the budget ceiling with change volume so a large, legitimate diff is
+// not flagged as over budget. Tiers mirror common presets; the configured
+// target is treated as a floor, never lowered.
+// Evaluates a context contract: each required pattern must be satisfied by at
+// least one included item. Patterns support globs (*, **, ?); a plain path also
+// matches a directory prefix. Returns satisfied/missing for an auditable result.
+function evaluateContract(includedItems, requirePatterns) {
+  const includedPaths = includedItems.map((item) => item.path).filter(Boolean);
+  const required = [...new Set((requirePatterns ?? []).filter((pattern) => typeof pattern === "string" && pattern))];
+  const satisfied = [];
+  const missing = [];
+  for (const pattern of required) {
+    const met = includedPaths.some((candidate) => matchesRequirement(candidate, pattern));
+    (met ? satisfied : missing).push(pattern);
+  }
+  return { missing, required, satisfied };
+}
+
+function matchesRequirement(candidate, pattern) {
+  if (!/[*?]/.test(pattern)) {
+    return candidate === pattern || candidate.startsWith(`${pattern.replace(/\/+$/, "")}/`);
+  }
+  let re = "";
+  for (let i = 0; i < pattern.length; i += 1) {
+    const char = pattern[i];
+    if (char === "*") {
+      if (pattern[i + 1] === "*") {
+        re += ".*";
+        i += 1;
+      } else {
+        re += "[^/]*";
+      }
+    } else if (char === "?") {
+      re += "[^/]";
+    } else if (".+^${}()|[]\\".includes(char)) {
+      re += `\\${char}`;
+    } else {
+      re += char;
+    }
+  }
+  return new RegExp(`^${re}$`).test(candidate);
+}
+
+// Builds the governance/compliance record for the packet: what policy enforced,
+// and whether the delivered context honored any configured hard limits. Makes
+// the packet an audit artifact — the governance angle for teams and enterprises.
+function buildCompliance({ config, deprecatedSpecs, deliveredTokens, policyExcludedCount, redactionsApplied }) {
+  const maxDeliveredTokens = config.policy?.maxDeliveredTokens ?? null;
+  const withinTokenCeiling =
+    !Number.isFinite(maxDeliveredTokens) || maxDeliveredTokens <= 0 ? true : deliveredTokens <= maxDeliveredTokens;
+  const violations = [];
+  if (!withinTokenCeiling) {
+    violations.push(
+      `Delivered ${deliveredTokens} tokens exceeds policy ceiling of ${maxDeliveredTokens}; tighten exclusions or raise the ceiling.`
+    );
+  }
+  return {
+    delivered_tokens: deliveredTokens,
+    deprecated_specs_excluded: deprecatedSpecs.length,
+    max_delivered_tokens: maxDeliveredTokens,
+    policy_excluded_count: policyExcludedCount,
+    redact_secrets: config.policy?.redactSecrets !== false,
+    redactions_applied: redactionsApplied,
+    violations,
+    within_token_ceiling: withinTokenCeiling
+  };
+}
+
+// Detects common monorepo layouts so the packet can report the workspace shape.
+// Lightweight metadata for now (used by surfaces and future per-package scoping).
+async function detectMonorepo(files, root) {
+  const has = (name) => files.some((file) => file.path === name);
+  let tool = null;
+  if (has("pnpm-workspace.yaml")) tool = "pnpm";
+  else if (has("nx.json")) tool = "nx";
+  else if (has("turbo.json")) tool = "turbo";
+  else if (has("lerna.json")) tool = "lerna";
+
+  let packages = [];
+  try {
+    const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+    const workspaces = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces?.packages ?? [];
+    if (workspaces.length) {
+      packages = workspaces;
+      if (!tool) tool = "npm-workspaces";
+    }
+  } catch {
+    // No root package.json or unparseable — not an npm workspace.
+  }
+
+  return { detected: Boolean(tool), packages: packages.slice(0, 20), tool: tool ?? null };
+}
+
+function resolveBudgetTier(baseTarget, changedCount) {
+  const base = baseTarget ?? 12_000;
+  if (changedCount >= 10) {
+    return { autoEscalated: base < 16_000, targetTokens: Math.max(base, 16_000), tier: "thorough" };
+  }
+  if (changedCount >= 5) {
+    return { autoEscalated: base < 12_000, targetTokens: Math.max(base, 12_000), tier: "balanced" };
+  }
+  return { autoEscalated: false, targetTokens: base, tier: "focused" };
+}
+
+// Honest, per-packet token allocation across sections — where the delivered
+// budget actually went. More transparent than fixed budget slots.
+function buildBudgetAllocation(packet) {
+  const tokensOf = (item) =>
+    Number.isFinite(item.tokens_estimate)
+      ? item.tokens_estimate
+      : estimateTokensForText(typeof item.content === "string" ? item.content : "");
+  const sum = (items) => (items ?? []).reduce((total, item) => total + tokensOf(item), 0);
+  return {
+    changed: sum(packet.changed_artifacts),
+    constraints: sum(packet.governing_constraints),
+    evidence: sum(packet.supporting_evidence),
+    neighbors: sum(packet.impacted_neighbors)
+  };
 }
 
 function getBudgetPressure(packetTokensEstimate, targetTokens) {

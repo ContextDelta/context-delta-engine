@@ -7,12 +7,14 @@ import {
   shouldIgnoreDirectory,
   shouldIgnoreFile
 } from "./file-kinds.js";
+import { isIgnored, loadIgnoreRules } from "./ignore.js";
 
 const DEFAULT_MAX_FILE_BYTES = 1_000_000;
 
 export async function scanWorkspace(workspaceRoot, options = {}) {
   const root = path.resolve(workspaceRoot);
   const maxFileBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
+  const ignoreRules = options.respectIgnoreFiles === false ? [] : await loadIgnoreRules(root);
   const files = [];
   const ignored = [];
 
@@ -27,6 +29,10 @@ export async function scanWorkspace(workspaceRoot, options = {}) {
           ignored.push({ path: relativePath, reason: "ignored directory" });
           continue;
         }
+        if (isIgnored(relativePath, ignoreRules)) {
+          ignored.push({ path: relativePath, reason: "ignored by .gitignore/.deltaignore" });
+          continue;
+        }
         await walk(absolutePath);
         continue;
       }
@@ -34,6 +40,10 @@ export async function scanWorkspace(workspaceRoot, options = {}) {
       if (!entry.isFile()) continue;
       if (shouldIgnoreFile(entry.name)) {
         ignored.push({ path: relativePath, reason: "ignored lock/generated file" });
+        continue;
+      }
+      if (isIgnored(relativePath, ignoreRules)) {
+        ignored.push({ path: relativePath, reason: "ignored by .gitignore/.deltaignore" });
         continue;
       }
 

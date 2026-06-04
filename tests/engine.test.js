@@ -43,6 +43,8 @@ import { estimateTokensForText, getTokenizerInfo, resolveEncoding } from "../pac
 import { scoreFile, hasRelevanceSignal } from "../packages/engine/src/ranking.js";
 import { buildRelevanceIndex, tokenizeIdentifier } from "../packages/engine/src/relevance.js";
 import { buildInstructionWarnings } from "../packages/engine/src/instructions.js";
+import { findSourceGraphNeighbors } from "../packages/engine/src/source-graph.js";
+import { classifyFile } from "../packages/engine/src/file-kinds.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -1872,4 +1874,464 @@ test("impacted neighbors exclude unrelated same-kind decoy modules", async () =>
   } finally {
     await fs.rm(workspace, { recursive: true, force: true });
   }
+});
+
+// --- Multi-language import graph (Rust, Java, Ruby, PHP) + tests/ classification ---
+
+async function graphNeighborPaths(workspace, files, changedPath) {
+  const scan = await scanWorkspace(workspace);
+  const neighbors = await findSourceGraphNeighbors(scan.files, new Set([changedPath]), []);
+  return neighbors.map((item) => item.path);
+}
+
+async function withWorkspace(prefix, layout, run) {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  try {
+    for (const [rel, content] of Object.entries(layout)) {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    }
+    await run(workspace);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+}
+
+test("source graph resolves Rust mod and use crate imports", async () => {
+  await withWorkspace("cd-rust-", {
+    "src/lib.rs": "pub mod auth;\n",
+    "src/auth.rs": "pub fn rotate() {}\n",
+    "src/app.rs": "use crate::auth::rotate;\n\nfn main() { rotate(); }\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "src/auth.rs");
+    assert.ok(paths.includes("src/app.rs"), `app.rs should depend on auth.rs; got ${JSON.stringify(paths)}`);
+    assert.ok(paths.includes("src/lib.rs"), "lib.rs declares `mod auth`");
+  });
+});
+
+test("source graph resolves Java package imports by suffix", async () => {
+  await withWorkspace("cd-java-", {
+    "src/main/java/com/ex/Service.java": "package com.ex;\npublic class Service {}\n",
+    "src/main/java/com/ex/App.java": "package com.ex;\nimport com.ex.Service;\npublic class App {}\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "src/main/java/com/ex/Service.java");
+    assert.ok(paths.includes("src/main/java/com/ex/App.java"), `App should import Service; got ${JSON.stringify(paths)}`);
+  });
+});
+
+test("source graph resolves Ruby require_relative", async () => {
+  await withWorkspace("cd-ruby-", {
+    "lib/auth.rb": "def rotate; end\n",
+    "app.rb": "require_relative 'lib/auth'\n\nrotate\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "lib/auth.rb");
+    assert.ok(paths.includes("app.rb"), `app.rb should require lib/auth; got ${JSON.stringify(paths)}`);
+  });
+});
+
+test("source graph resolves PHP relative require and namespaced use", async () => {
+  await withWorkspace("cd-php-", {
+    "src/Auth.php": "<?php\nfunction rotate() {}\n",
+    "src/App.php": "<?php\nrequire_once __DIR__ . '/Auth.php';\n",
+    "src/Service.php": "<?php\nnamespace App;\nuse App\\Auth;\nclass Service {}\n"
+  }, async (ws) => {
+    const paths = await graphNeighborPaths(ws, null, "src/Auth.php");
+    assert.ok(paths.includes("src/App.php"), `App.php require should resolve; got ${JSON.stringify(paths)}`);
+  });
+});
+
+test("top-level tests/ directory is classified as test", () => {
+  assert.equal(classifyFile("tests/billing.rs"), "test");
+  assert.equal(classifyFile("test/foo.rb"), "test");
+  assert.equal(classifyFile("src/billing.rs"), "source");
+  // a source file that merely contains the substring must not be misread
+  assert.equal(classifyFile("src/testing-utils.ts"), "source");
+});
+
+// --- Signature compression (model-free body stripping for distant context) ---
+
+test("extractSignatures keeps declarations and drops bodies, smaller output", async () => {
+  const { extractSignatures } = await import("../packages/engine/src/compression.js");
+  const ts = [
+    'import { x } from "./x";',
+    "export function rotate(token, admin) {",
+    "  const a = compute(token);",
+    "  if (admin) { return escalate(a); }",
+    "  return a;",
+    "}"
+  ].join("\n");
+  const skeleton = extractSignatures(ts, "src/auth.ts");
+  assert.ok(skeleton, "should produce a skeleton for a brace language");
+  assert.ok(skeleton.includes("export function rotate(token, admin)"), "keeps the signature");
+  assert.ok(!skeleton.includes("escalate"), "drops body internals");
+  assert.ok(skeleton.length < ts.length, "skeleton is smaller");
+
+  const py = ["import os", "", "def charge(amount):", "    if amount <= 0:", "        raise ValueError('bad')", "    return amount"].join("\n");
+  const pySkeleton = extractSignatures(py, "pay.py");
+  assert.ok(pySkeleton.includes("def charge(amount):"), "keeps python def header");
+  assert.ok(!pySkeleton.includes("ValueError"), "drops python body");
+
+  assert.equal(extractSignatures("plain text", "notes.txt"), null, "non-code returns null");
+});
+
+test("distant graph neighbors are sent as signature skeletons", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-compress-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    // core <- mid <- app : app is 2 hops from core
+    await write("src/core.ts", "export function core(x) { return x + 1; }\n");
+    await write("src/mid.ts", 'import { core } from "./core";\nexport function mid(x) { return core(x); }\n');
+    await write(
+      "src/app.ts",
+      'import { mid } from "./mid";\nexport function app(x) {\n  const secret = computeSecretThing(x);\n  return mid(secret);\n}\n'
+    );
+
+    const scan = await scanWorkspace(workspace);
+    const neighbors = await findSourceGraphNeighbors(scan.files, new Set(["src/core.ts"]), []);
+    const app = neighbors.find((n) => n.path === "src/app.ts");
+    const mid = neighbors.find((n) => n.path === "src/mid.ts");
+    assert.ok(app, "app.ts (2 hops) should be a neighbor");
+    assert.equal(app.graph_distance, 2);
+    assert.equal(app.compression, "signatures", "distant neighbor is compressed");
+    assert.ok(!app.content.includes("computeSecretThing"), "body stripped from distant neighbor");
+    assert.equal(mid.compression, "full", "direct (1-hop) neighbor keeps full content");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+// --- Ignore inheritance, budget auto-escalation, monorepo detection ---
+
+test("compileIgnore/isIgnored honor dirs, globs, anchors, and negation", async () => {
+  const { compileIgnore, isIgnored } = await import("../packages/engine/src/ignore.js");
+  const rules = compileIgnore("build/\n*.log\n/secret.txt\n**/cache\n!keep.log\n");
+  assert.equal(isIgnored("build/out.js", rules), true);
+  assert.equal(isIgnored("src/app.log", rules), true);
+  assert.equal(isIgnored("keep.log", rules), false);
+  assert.equal(isIgnored("secret.txt", rules), true);
+  assert.equal(isIgnored("a/b/cache/x.js", rules), true);
+  assert.equal(isIgnored("src/app.ts", rules), false);
+});
+
+test("scanWorkspace respects a .deltaignore file", async () => {
+  await withWorkspace("cd-ignore-", {
+    ".deltaignore": "generated/\n*.snap\n",
+    "src/app.ts": "export const x = 1;\n",
+    "src/app.snap": "snapshot data\n",
+    "generated/big.ts": "export const big = 1;\n"
+  }, async (ws) => {
+    const scan = await scanWorkspace(ws);
+    const paths = scan.files.map((f) => f.path);
+    assert.ok(paths.includes("src/app.ts"), "normal file kept");
+    assert.ok(!paths.includes("src/app.snap"), "*.snap ignored");
+    assert.ok(!paths.some((p) => p.startsWith("generated/")), "generated/ ignored");
+  });
+});
+
+test("budget auto-escalates with change volume", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-budget-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    for (let i = 0; i < 12; i += 1) await write(`src/mod${i}.ts`, `export const v${i} = ${i};\n`);
+    const scan = await scanWorkspace(workspace);
+    await writeSnapshot(workspace, scan.files);
+    for (let i = 0; i < 12; i += 1) await fs.appendFile(path.join(workspace, `src/mod${i}.ts`), `export const extra${i} = ${i};\n`);
+
+    const { packet } = await buildContextPacket({ task: "refactor modules", updateSnapshot: false, workspaceRoot: workspace });
+    assert.equal(packet.budget.tier, "thorough", `12 changed files should escalate to thorough; got ${packet.budget.tier}`);
+    assert.equal(packet.budget.auto_escalated, true);
+    assert.ok(packet.budget.allocation && Number.isFinite(packet.budget.allocation.changed), "allocation present");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("monorepo layout is detected and surfaced", async () => {
+  await withWorkspace("cd-mono-", {
+    "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n",
+    "packages/a/index.ts": "export const a = 1;\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "touch package a", updateSnapshot: false, workspaceRoot: ws });
+    assert.equal(packet.workspace.monorepo.detected, true);
+    assert.equal(packet.workspace.monorepo.tool, "pnpm");
+  });
+});
+
+// --- Spec freshness: deprecated/superseded specs kept out of the packet (B3) ---
+
+test("detectSpecStatus recognizes stale and active statuses", async () => {
+  const { detectSpecStatus, isStaleStatus } = await import("../packages/engine/src/spec-freshness.js");
+  assert.equal(detectSpecStatus("# Spec\n\nStatus: Superseded\n"), "superseded");
+  assert.equal(detectSpecStatus("## Deprecated: old rule\n"), "deprecated");
+  assert.equal(detectSpecStatus("This document is obsolete and no longer valid."), "deprecated");
+  assert.equal(detectSpecStatus("Status: Accepted\n"), "accepted");
+  assert.equal(detectSpecStatus("# Spec\n\nA normal requirement.\n"), null);
+  assert.equal(isStaleStatus("superseded"), true);
+  assert.equal(isStaleStatus("draft"), false);
+  assert.equal(isStaleStatus("accepted"), false);
+});
+
+test("a deprecated spec is excluded from the packet with a reason and warning", async () => {
+  await withWorkspace("cd-staleSpec-", {
+    "specs/feature/spec.md": "# Feature Spec\n\nStatus: Accepted\n\n## Requirement: cap value at 50\n\nThe service must cap the value at 50.\n",
+    "specs/feature/legacy.md": "# Feature Spec (legacy)\n\nStatus: Superseded\n\n## Requirement: no cap\n\nOld rule: the service allows uncapped values.\n",
+    "src/service.ts": "export function cap(v) { return Math.min(v, 50); }\n",
+    "AGENTS.md": "# Agent Instructions\n\nFollow the current spec, not superseded ones.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "cap the service value at 50", updateSnapshot: false, workspaceRoot: ws });
+    const includedSpecs = getUniqueIncludedItems(packet).filter((i) => i.type === "spec_section").map((i) => i.path);
+    assert.ok(!includedSpecs.includes("specs/feature/legacy.md"), `superseded spec must not be included; got ${JSON.stringify(includedSpecs)}`);
+    assert.ok(packet.spec_review.deprecated_specs.some((d) => d.path === "specs/feature/legacy.md" && d.status === "superseded"));
+    assert.ok(packet.excluded.some((e) => e.path === "specs/feature/legacy.md" && /superseded/i.test(e.reason)));
+    assert.ok(packet.warnings.some((w) => w.type === "stale-spec"));
+  });
+});
+
+// --- Governance / compliance block + token ceiling (B6) ---
+
+test("packet carries a compliance record and honors a token ceiling", async () => {
+  await withWorkspace("cd-compliance-", {
+    "src/app.ts": "export function run() { return 1; }\n",
+    "AGENTS.md": "# Agent Instructions\n\nKeep it small.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "run the app", updateSnapshot: false, workspaceRoot: ws });
+    assert.ok(packet.compliance, "compliance block present");
+    assert.equal(packet.compliance.within_token_ceiling, true);
+    assert.equal(packet.compliance.violations.length, 0);
+    assert.equal(packet.compliance.redact_secrets, true);
+    assert.ok(Number.isFinite(packet.compliance.delivered_tokens));
+  });
+});
+
+test("a delivered-token policy ceiling produces a violation and warning", async () => {
+  await withWorkspace("cd-ceiling-", {
+    "contextdelta.config.json": JSON.stringify({ policy: { maxDeliveredTokens: 5 } }),
+    "src/app.ts": "export function run() { return computeSomethingLong(1, 2, 3); }\n",
+    "specs/app/spec.md": "# App Spec\n\n## Requirement\n\nThe app must run and compute things.\n",
+    "AGENTS.md": "# Agent Instructions\n\nFollow the spec.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "run the app and compute things", updateSnapshot: false, workspaceRoot: ws });
+    assert.equal(packet.compliance.max_delivered_tokens, 5);
+    assert.equal(packet.compliance.within_token_ceiling, false, "delivered tokens should exceed a tiny ceiling");
+    assert.ok(packet.compliance.violations.length >= 1);
+    assert.ok(packet.warnings.some((w) => w.type === "policy-violation"));
+  });
+});
+
+// --- Packet format contract (C4) ---
+
+test("a freshly built packet satisfies the packet contract", async () => {
+  const { validatePacket } = await import("../packages/engine/src/packet-schema.js");
+  await withWorkspace("cd-schema-", {
+    "src/auth/service.ts": "export function rotate(token) { return token; }\n",
+    "tests/auth/service.test.ts": "import { rotate } from '../../src/auth/service';\ntest('rotate', () => { expect(rotate('a')).toBe('a'); });\n",
+    "specs/auth/spec.md": "# Auth Spec\n\n## Requirement\n\nRotate tokens.\n",
+    "AGENTS.md": "# Agent Instructions\n\nCover changes with tests.\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "rotate auth tokens", updateSnapshot: false, workspaceRoot: ws });
+    const { valid, errors } = validatePacket(packet);
+    assert.ok(valid, `packet should satisfy the contract; errors: ${JSON.stringify(errors)}`);
+  });
+});
+
+test("validatePacket rejects a malformed packet", async () => {
+  const { validatePacket } = await import("../packages/engine/src/packet-schema.js");
+  const bad = validatePacket({ schema_version: "0.1" });
+  assert.equal(bad.valid, false);
+  assert.ok(bad.errors.some((e) => e.includes("missing required field")));
+
+  const inconsistent = validatePacket({
+    schema_version: "0.1", id: "x", created_at: "now",
+    intent: { task: "t", keywords: [] },
+    changed_artifacts: [], supporting_evidence: [], governing_constraints: [], impacted_neighbors: [],
+    excluded: [], warnings: [],
+    budget: { target_tokens: 100, pressure: "low" },
+    delivery: {}, controls: {}, spec_kit: {}, spec_review: {}, security: {},
+    summary: { included_files_count: 0, excluded_files_count: 0 },
+    workspace: { root: "/x" },
+    compliance: { within_token_ceiling: true, violations: [] },
+    metrics: { delivered_tokens_estimate: 5000, baseline_tokens_estimate: 100, context_reduction_percent: 50, packet_tokens_estimate: 10, token_count_method: "exact_tokenizer" }
+  });
+  assert.equal(inconsistent.valid, false, "delivered > baseline must be rejected");
+  assert.ok(inconsistent.errors.some((e) => e.includes("exceeds baseline")));
+});
+
+// --- Robustness & performance: the engine must never crash, hang, or degrade ---
+
+test("builds a valid packet for an empty workspace without throwing", async () => {
+  const { validatePacket } = await import("../packages/engine/src/packet-schema.js");
+  await withWorkspace("cd-empty-", { "README.md": "# Empty\n" }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "do something", updateSnapshot: false, workspaceRoot: ws });
+    assert.ok(validatePacket(packet).valid, "empty-workspace packet should still satisfy the contract");
+    assert.ok(Array.isArray(packet.supporting_evidence), "sections present even when near-empty");
+  });
+});
+
+test("tolerates binary, oversized, and extensionless files", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-weird-"));
+  try {
+    await fs.mkdir(path.join(workspace, "src"), { recursive: true });
+    await fs.writeFile(path.join(workspace, "src/app.ts"), "export const x = 1;\n");
+    await fs.writeFile(path.join(workspace, "src/blob.bin"), Buffer.from([0, 159, 146, 150, 0, 255, 254]));
+    await fs.writeFile(path.join(workspace, "Makefile"), "all:\n\techo hi\n"); // no extension
+    await fs.writeFile(path.join(workspace, "src/huge.ts"), `// big\n${"x".repeat(1_200_000)}\n`);
+    const { packet } = await buildContextPacket({ task: "touch app", updateSnapshot: false, workspaceRoot: workspace });
+    const included = getUniqueIncludedItems(packet).map((i) => i.path);
+    assert.ok(!included.includes("src/blob.bin"), "binary file not delivered");
+    assert.ok(!included.includes("src/huge.ts"), "oversized file not delivered");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("does not hang on a pathological minified line", async () => {
+  const { buildRelevanceIndex } = await import("../packages/engine/src/relevance.js");
+  const { extractSignatures } = await import("../packages/engine/src/compression.js");
+  const huge = `export const data = {${"a:1,".repeat(50_000)}};\n`;
+  const start = Date.now();
+  await withWorkspace("cd-minified-", { "src/data.ts": huge, "src/app.ts": "export const y = 2;\n" }, async (ws) => {
+    const scan = await scanWorkspace(ws);
+    const index = await buildRelevanceIndex(scan.files);
+    assert.ok(index.byPath.has("src/data.ts"));
+    extractSignatures(huge, "src/data.ts"); // must return promptly
+  });
+  assert.ok(Date.now() - start < 5000, "indexing a minified file must not hang");
+});
+
+test("ignore matcher never throws on unusual patterns", async () => {
+  const { compileIgnore, isIgnored } = await import("../packages/engine/src/ignore.js");
+  const rules = compileIgnore("***\n[unclosed\n!!weird\n   \n#comment\n**/a/**/b\n");
+  assert.doesNotThrow(() => isIgnored("a/x/b", rules));
+  assert.doesNotThrow(() => isIgnored("", rules));
+});
+
+test("packet assembly stays within a generous time budget (regression guard)", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-perf-"));
+  try {
+    for (let i = 0; i < 200; i += 1) {
+      const dir = path.join(workspace, "src", `m${i}`);
+      await fs.mkdir(dir, { recursive: true });
+      const dep = i > 0 ? `import { f${i - 1} } from "../m${i - 1}/s";\n` : "";
+      await fs.writeFile(path.join(dir, "s.ts"), `${dep}export function f${i}(x){return x+${i};}\n`);
+    }
+    const start = Date.now();
+    await buildContextPacket({ task: "update module multiply logic", updateSnapshot: false, workspaceRoot: workspace });
+    const elapsed = Date.now() - start;
+    assert.ok(elapsed < 8000, `assembly on 200 files took ${elapsed}ms (budget 8000ms) — possible algorithmic regression`);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+// --- Feedback flywheel: learn from drift misses to improve future packets (C2) ---
+
+test("feedback boosts apply only to overlapping-keyword tasks", async () => {
+  const { recordFeedback, loadFeedbackBoosts } = await import("../packages/engine/src/feedback.js");
+  await withWorkspace("cd-fb-", { "README.md": "# x\n" }, async (ws) => {
+    await recordFeedback(ws, { task: "add email retry to notifications", missedPaths: ["src/util/backoff.ts"] });
+    const related = await loadFeedbackBoosts(ws, ["retry", "notifications", "email"]);
+    assert.ok(related.has("src/util/backoff.ts"), "boost applies to a related task");
+    const unrelated = await loadFeedbackBoosts(ws, ["pricing", "discount", "invoice"]);
+    assert.ok(!unrelated.has("src/util/backoff.ts"), "boost does not leak to unrelated tasks");
+    const optedOut = await loadFeedbackBoosts(ws, ["retry"], { enabled: false });
+    assert.equal(optedOut.size, 0, "opt-out disables boosts");
+  });
+});
+
+test("a recorded drift miss is surfaced in a later similar packet", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-fb-e2e-"));
+  try {
+    const write = async (rel, content) => {
+      const full = path.join(workspace, rel);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.writeFile(full, content);
+    };
+    await write("src/notifications/service.ts", "export function notify() { return 1; }\n");
+    await write("src/util/backoff.ts", "export function wait(ms) { return ms; }\n");
+    await write("AGENTS.md", "# Agent Instructions\n");
+    const scan = await scanWorkspace(workspace);
+    await writeSnapshot(workspace, scan.files);
+
+    const before = getUniqueIncludedItems(
+      (await buildContextPacket({ task: "add email retry to notifications", updateSnapshot: false, workspaceRoot: workspace })).packet
+    ).map((i) => i.path);
+    assert.ok(!before.includes("src/util/backoff.ts"), "baseline does not include the unrelated-by-name file");
+
+    const { recordFeedback } = await import("../packages/engine/src/feedback.js");
+    await recordFeedback(workspace, { task: "add email retry to notifications", missedPaths: ["src/util/backoff.ts"] });
+
+    const after = getUniqueIncludedItems(
+      (await buildContextPacket({ task: "add retry to notifications service", updateSnapshot: false, workspaceRoot: workspace })).packet
+    );
+    const item = after.find((i) => i.path === "src/util/backoff.ts");
+    assert.ok(item, "after feedback, the previously-missed file is included");
+    assert.match(item.reason, /learned from drift feedback/);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+// --- Loop compaction: incremental handoff must never retain stale content (C5) ---
+
+test("incremental handoff re-sends changed content instead of retaining it", () => {
+  const mk = (path, content) => ({
+    changed_artifacts: [{ type: "file_snapshot", path, content }],
+    supporting_evidence: [],
+    governing_constraints: [],
+    impacted_neighbors: []
+  });
+  const previous = mk("src/a.ts", "version one content");
+
+  const unchanged = buildIncrementalHandoffModel(mk("src/a.ts", "version one content"), previous);
+  assert.equal(unchanged.retained.length, 1, "identical content is retained (not re-sent)");
+  assert.equal(unchanged.new_buckets.length, 0);
+
+  const changed = buildIncrementalHandoffModel(mk("src/a.ts", "version TWO different content"), previous);
+  assert.ok(
+    changed.new_buckets.some((b) => b.items.some((i) => i.path === "src/a.ts")),
+    "changed content is re-sent as new"
+  );
+  assert.equal(changed.retained.length, 0, "changed content is not falsely retained");
+  assert.equal(changed.removed.length, 0, "a content change is an update, not a removal");
+
+  const dropped = buildIncrementalHandoffModel(mk("src/b.ts", "new file"), previous);
+  assert.ok(dropped.removed.some((i) => i.path === "src/a.ts"), "a genuinely dropped file is removed");
+});
+
+// --- Context contracts: required context is verified at build time (C3) ---
+
+test("a context contract reports satisfied and missing required patterns", async () => {
+  await withWorkspace("cd-contract-", {
+    "contextdelta.config.json": JSON.stringify({ contract: { require: ["src/auth/**", "tests/**"] } }),
+    "src/auth/service.ts": "export function rotate(token) { return token; }\n",
+    "AGENTS.md": "# Agent Instructions\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "rotate the auth token service", updateSnapshot: false, workspaceRoot: ws });
+    const contract = packet.compliance.contract;
+    assert.ok(contract.satisfied.includes("src/auth/**"), "auth pattern satisfied");
+    assert.ok(contract.missing.includes("tests/**"), "tests pattern missing (no tests present)");
+    assert.ok(packet.warnings.some((w) => w.type === "contract-violation"));
+  });
+});
+
+test("a fully satisfied contract produces no violation", async () => {
+  await withWorkspace("cd-contract-ok-", {
+    "contextdelta.config.json": JSON.stringify({ contract: { require: ["src/auth/service.ts"] } }),
+    "src/auth/service.ts": "export function rotate(token) { return token; }\n",
+    "tests/auth.test.ts": "import { rotate } from '../src/auth/service';\ntest('r', () => { expect(rotate('a')).toBe('a'); });\n",
+    "AGENTS.md": "# Agent Instructions\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "rotate the auth token service", updateSnapshot: false, workspaceRoot: ws });
+    assert.equal(packet.compliance.contract.missing.length, 0);
+    assert.ok(!packet.warnings.some((w) => w.type === "contract-violation"));
+  });
 });

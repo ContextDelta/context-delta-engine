@@ -149,6 +149,30 @@ Ranking is local, deterministic, and explainable. Implemented today:
 The content + symbol + IDF index is built locally per packet — no embeddings and
 no model calls — keeping ranking auditable and offline.
 
+### Feedback flywheel (learns from misses, locally)
+
+When `drift` review finds the agent edited a file the packet did **not** include
+(and that wasn't explicitly excluded), that's a ranking miss. Context Delta
+records it locally under `.contextdelta/feedback.json` as
+`(task keywords → missed paths)`. On a future task with overlapping keywords,
+those paths get a ranking boost so the previous miss becomes a hit, tagged
+"learned from drift feedback". It is privacy-safe (only paths and derived
+keywords, never content), capped, opt-out via `feedback.enabled`, and — unlike a
+hosted model — it improves with a user's *own* usage and needs no external data.
+
+## Performance
+
+Everything runs locally and deterministically. On a synthetic 1,000-file
+TypeScript repo (`npm run benchmark`), the per-task work measures:
+
+| Stage | mean |
+| --- | --- |
+| Workspace scan + classify | ~80 ms |
+| Full packet assembly (scan + graph + index + rank + tokenize) | ~570 ms |
+
+These are wall-clock numbers on a single machine and scale with repo size; the
+benchmark is reproducible from a clean checkout.
+
 Later ranking can add:
 
 - embeddings

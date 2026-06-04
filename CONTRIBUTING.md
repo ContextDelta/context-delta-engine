@@ -2,6 +2,8 @@
 
 Context Delta is early. Contributions are welcome, especially around:
 
+- **ContextBench gold-set cases** — the highest-leverage contribution. See
+  [docs/contextbench.md](docs/contextbench.md) for how to add a labeled task.
 - clear examples
 - spec-driven development workflows
 - GitHub Copilot workflows
@@ -43,6 +45,26 @@ npm run release:check
 
 This validates package metadata, docs, extension manifest coverage, syntax,
 tests, workspace doctor, and demo smoke behavior.
+
+### Quality gates (what stops a regression reaching users)
+
+`release:check` runs all of these, so a regression in any of them fails the build:
+
+- `npm test` — unit + integration suite.
+- `npm run eval:multi` / `npm run contextbench` — packet **correctness** (impact
+  coverage, omission, density, forbidden) against the labeled gold set.
+- `npm run e2e` — the full pipeline over the live MCP server.
+- `npm run mcp:conformance` — the MCP wire contract real hosts depend on.
+- `npm run validate:packet` — the packet **format contract**.
+
+Two more guards run on demand:
+
+- `npm run benchmark:assert` — **performance** regression guard (fails on a
+  catastrophic slowdown).
+- `npm run benchmark` — detailed local timings.
+
+If you change ranking, compression, or packet assembly, run `contextbench` and
+`benchmark:assert` before opening a PR — those are the behaviors users notice.
 
 ## VS Code Extension Development
 

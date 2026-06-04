@@ -35,7 +35,14 @@ export const DEFAULT_CONFIG = {
     enabled: true,
     targets: [".github/copilot-instructions.md", "AGENTS.md"]
   },
+  feedback: {
+    enabled: true
+  },
+  contract: {
+    require: []
+  },
   policy: {
+    maxDeliveredTokens: null,
     excludePaths: [
       ".env",
       ".env.*",

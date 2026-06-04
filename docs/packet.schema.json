@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contextdelta.github.io/context-delta-engine/packet.schema.json",
+  "title": "Context Delta Packet",
+  "description": "The portable, inspectable context packet produced by Context Delta. Authoritative enforcement lives in packages/engine/src/packet-schema.js; this file mirrors it for external tooling and interop.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "created_at",
+    "intent",
+    "changed_artifacts",
+    "supporting_evidence",
+    "governing_constraints",
+    "impacted_neighbors",
+    "excluded",
+    "warnings",
+    "budget",
+    "delivery",
+    "metrics",
+    "summary",
+    "workspace",
+    "controls",
+    "compliance"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "intent": {
+      "type": "object",
+      "required": [
+        "task",
+        "keywords"
+      ],
+      "properties": {
+        "task": {
+          "type": "string"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "number"
+        }
+      }
+    },
+    "changed_artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "supporting_evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "governing_constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "impacted_neighbors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "reason"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "message"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "target_tokens",
+        "pressure"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "focused",
+            "balanced",
+            "thorough"
+          ]
+        },
+        "auto_escalated": {
+          "type": "boolean"
+        },
+        "target_tokens": {
+          "type": "number"
+        },
+        "pressure": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "over",
+            "unknown"
+          ]
+        },
+        "packet_tokens_estimate": {
+          "type": "number"
+        },
+        "allocation": {
+          "type": "object"
+        }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "delivered_tokens_estimate",
+        "baseline_tokens_estimate",
+        "context_reduction_percent",
+        "packet_tokens_estimate",
+        "token_count_method"
+      ],
+      "properties": {
+        "delivered_tokens_estimate": {
+          "type": "number"
+        },
+        "baseline_tokens_estimate": {
+          "type": "number"
+        },
+        "context_reduction_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "packet_tokens_estimate": {
+          "type": "number"
+        },
+        "token_count_method": {
+          "type": "string"
+        },
+        "tokenizer_encoding": {
+          "type": "string"
+        },
+        "baselines": {
+          "type": "object"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "included_files_count",
+        "excluded_files_count"
+      ],
+      "properties": {
+        "included_files_count": {
+          "type": "number"
+        },
+        "excluded_files_count": {
+          "type": "number"
+        },
+        "included_spec_units_count": {
+          "type": "number"
+        },
+        "included_tests_count": {
+          "type": "number"
+        }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "required": [
+        "root"
+      ],
+      "properties": {
+        "root": {
+          "type": "string"
+        },
+        "git": {
+          "type": "object"
+        },
+        "monorepo": {
+          "type": "object"
+        }
+      }
+    },
+    "controls": {
+      "type": "object"
+    },
+    "compliance": {
+      "type": "object",
+      "required": [
+        "within_token_ceiling",
+        "violations"
+      ],
+      "properties": {
+        "within_token_ceiling": {
+          "type": "boolean"
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "redactions_applied": {
+          "type": "number"
+        },
+        "policy_excluded_count": {
+          "type": "number"
+        },
+        "contract": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "array"
+            },
+            "satisfied": {
+              "type": "array"
+            },
+            "missing": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    },
+    "spec_kit": {
+      "type": "object"
+    },
+    "spec_review": {
+      "type": "object"
+    },
+    "security": {
+      "type": "object"
+    },
+    "insights": {
+      "type": "object"
+    },
+    "compact_view": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "heading": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "tokens_estimate": {
+          "type": "number"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "heading"
+          ]
+        }
+      ]
+    }
+  }
+}

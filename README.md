@@ -126,9 +126,12 @@ model calls. It follows imports and re-exports with multi-hop transitive impact
 tests that actually import the changed code) and **spec→code edges** (the spec
 sections that reference it). Import resolution works for **JavaScript /
 TypeScript** (incl. barrel re-exports and dynamic imports), **Python**
-(relative and intra-repo absolute imports, pytest files), and **Go**
-(module-aware package imports). Other languages still benefit from ranking,
-git/snapshot change detection, and same-directory signals.
+(relative and intra-repo absolute imports, pytest files), **Go** (module-aware
+package imports), **Rust** (`mod` and `use crate/super/self`), **Java**
+(package-qualified imports), **Ruby** (`require_relative`), and **PHP**
+(relative `require`/`include` and PSR-4 `use`). Other languages still benefit
+from content/symbol ranking, git/snapshot change detection, and same-directory
+signals.
 
 The whole pipeline — packet assembly, the graph, tokenization, baselines, and
 the analytics rollup — is exercised end to end against the live MCP server by
@@ -250,16 +253,16 @@ npm run eval:multi
 ```
 
 On the bundled gold set (auth change, static-site review, JavaScript, Python,
-TypeScript, and Go service/test fixes, plus a precision case with decoy
-modules), the current engine measures:
+TypeScript, Go, and Rust service/test fixes, plus precision (decoy modules)
+and spec-supersession cases), the current engine measures:
 
 | Metric | Result |
 | --- | --- |
-| Cases passed | 7 / 7 (100%) |
+| Cases passed | 9 / 9 (100%) |
 | Useful-context density | 96% average |
 | Impact coverage | 100% average |
 | Omission rate | 0% average |
-| Whole-workspace context reduction | 82% average |
+| Whole-workspace context reduction | 83% average |
 
 These are the only quality numbers Context Delta claims, and they are
 reproducible from a clean checkout with the command above. Token reduction is
@@ -496,7 +499,6 @@ Next:
 - packet replay and trend views
 - deeper Spec Kit folder detection
 - richer spec/plan/tasks parsing
-- GitHub Action packet reports
 
 Later:
 
@@ -521,6 +523,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [Observability](docs/observability.md)
 - [Testing](docs/testing.md)
 - [Packet-quality eval](docs/eval.md)
+- [ContextBench (correctness benchmark)](docs/contextbench.md)
 - [VS Code extension](docs/vscode-extension.md)
 - [MCP integration](docs/mcp.md)
 - [MCP client setup](docs/mcp-client-setup.md)
@@ -536,6 +539,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the working roadmap.
 - [Scaling](docs/scaling.md)
 - [Go to market](docs/go-to-market.md)
 - [Architecture](docs/architecture.md)
+- [Packet format & schema](docs/packet-format.md)
 - [Edge cases](docs/edge-cases.md)
 - [Research notes](docs/research-notes.md)
 

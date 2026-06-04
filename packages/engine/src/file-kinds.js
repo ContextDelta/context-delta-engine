@@ -118,6 +118,9 @@ function isSpecFile(lower, basename) {
 
 function isTestFile(lower, basename) {
   if (lower.includes("/tests/") || lower.includes("/__tests__/")) return true;
+  // Top-level tests/ or test/ directory (common in Rust, Java, Ruby, and many
+  // other layouts) — the substring checks above only catch nested ones.
+  if (lower.startsWith("tests/") || lower.startsWith("test/")) return true;
   return (
     basename.includes(".test.") ||
     basename.includes(".spec.") ||

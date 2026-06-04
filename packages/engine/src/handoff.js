@@ -35,8 +35,22 @@ function incrementalItemKey(item) {
   return [
     item.type ?? item.kind ?? "context",
     item.path ?? "unknown",
-    item.heading ?? item.line_start ?? ""
+    item.heading ?? item.line_start ?? "",
+    // Content fingerprint: a same-path item whose content CHANGED between turns
+    // must count as new (re-sent), never as "retained, do not re-request" —
+    // otherwise the agent keeps working from stale content across the loop.
+    contentFingerprint(item)
   ].join(":");
+}
+
+function contentFingerprint(item) {
+  const content = typeof item.content === "string" ? item.content : "";
+  if (content.length === 0) return "";
+  let hash = 5381;
+  for (let i = 0; i < content.length; i += 1) {
+    hash = ((hash << 5) + hash + content.charCodeAt(i)) | 0;
+  }
+  return `${content.length}.${hash >>> 0}`;
 }
 
 function itemTokens(item) {
@@ -83,7 +97,12 @@ export function buildIncrementalHandoffModel(currentPacket, previousPacket) {
     }
   }
 
-  const removed = previousItems.filter((item) => !currentKeys.has(incrementalItemKey(item)));
+  // Genuinely dropped items only: a file whose content merely changed reappears
+  // under a new key (re-sent above), so exclude any path still present this turn.
+  const currentPaths = new Set(currentItems.map((item) => item.path).filter(Boolean));
+  const removed = previousItems.filter(
+    (item) => !currentKeys.has(incrementalItemKey(item)) && !(item.path && currentPaths.has(item.path))
+  );
   const fullTokens = newTokens + retainedTokens;
   const savedPercent = fullTokens > 0 ? Number(((retainedTokens / fullTokens) * 100).toFixed(1)) : 0;
 
