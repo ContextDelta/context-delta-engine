@@ -71,6 +71,7 @@
     "e2e": "node scripts/e2e.mjs",
     "mcp:conformance": "node scripts/mcp-conformance.mjs",
     "benchmark": "node scripts/benchmark.mjs",
+    "benchmark:assert": "node scripts/benchmark.mjs --files 800 --runs 3 --assert",
     "pr-comment": "node scripts/pr-context-comment.mjs",
     "validate:packet": "node scripts/validate-packet.mjs",
     "validate:release": "node scripts/validate-release.js",

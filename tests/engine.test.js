@@ -2164,3 +2164,70 @@ test("validatePacket rejects a malformed packet", async () => {
   assert.equal(inconsistent.valid, false, "delivered > baseline must be rejected");
   assert.ok(inconsistent.errors.some((e) => e.includes("exceeds baseline")));
 });
+
+// --- Robustness & performance: the engine must never crash, hang, or degrade ---
+
+test("builds a valid packet for an empty workspace without throwing", async () => {
+  const { validatePacket } = await import("../packages/engine/src/packet-schema.js");
+  await withWorkspace("cd-empty-", { "README.md": "# Empty\n" }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "do something", updateSnapshot: false, workspaceRoot: ws });
+    assert.ok(validatePacket(packet).valid, "empty-workspace packet should still satisfy the contract");
+    assert.ok(Array.isArray(packet.supporting_evidence), "sections present even when near-empty");
+  });
+});
+
+test("tolerates binary, oversized, and extensionless files", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-weird-"));
+  try {
+    await fs.mkdir(path.join(workspace, "src"), { recursive: true });
+    await fs.writeFile(path.join(workspace, "src/app.ts"), "export const x = 1;\n");
+    await fs.writeFile(path.join(workspace, "src/blob.bin"), Buffer.from([0, 159, 146, 150, 0, 255, 254]));
+    await fs.writeFile(path.join(workspace, "Makefile"), "all:\n\techo hi\n"); // no extension
+    await fs.writeFile(path.join(workspace, "src/huge.ts"), `// big\n${"x".repeat(1_200_000)}\n`);
+    const { packet } = await buildContextPacket({ task: "touch app", updateSnapshot: false, workspaceRoot: workspace });
+    const included = getUniqueIncludedItems(packet).map((i) => i.path);
+    assert.ok(!included.includes("src/blob.bin"), "binary file not delivered");
+    assert.ok(!included.includes("src/huge.ts"), "oversized file not delivered");
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});
+
+test("does not hang on a pathological minified line", async () => {
+  const { buildRelevanceIndex } = await import("../packages/engine/src/relevance.js");
+  const { extractSignatures } = await import("../packages/engine/src/compression.js");
+  const huge = `export const data = {${"a:1,".repeat(50_000)}};\n`;
+  const start = Date.now();
+  await withWorkspace("cd-minified-", { "src/data.ts": huge, "src/app.ts": "export const y = 2;\n" }, async (ws) => {
+    const scan = await scanWorkspace(ws);
+    const index = await buildRelevanceIndex(scan.files);
+    assert.ok(index.byPath.has("src/data.ts"));
+    extractSignatures(huge, "src/data.ts"); // must return promptly
+  });
+  assert.ok(Date.now() - start < 5000, "indexing a minified file must not hang");
+});
+
+test("ignore matcher never throws on unusual patterns", async () => {
+  const { compileIgnore, isIgnored } = await import("../packages/engine/src/ignore.js");
+  const rules = compileIgnore("***\n[unclosed\n!!weird\n   \n#comment\n**/a/**/b\n");
+  assert.doesNotThrow(() => isIgnored("a/x/b", rules));
+  assert.doesNotThrow(() => isIgnored("", rules));
+});
+
+test("packet assembly stays within a generous time budget (regression guard)", async () => {
+  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "cd-perf-"));
+  try {
+    for (let i = 0; i < 200; i += 1) {
+      const dir = path.join(workspace, "src", `m${i}`);
+      await fs.mkdir(dir, { recursive: true });
+      const dep = i > 0 ? `import { f${i - 1} } from "../m${i - 1}/s";\n` : "";
+      await fs.writeFile(path.join(dir, "s.ts"), `${dep}export function f${i}(x){return x+${i};}\n`);
+    }
+    const start = Date.now();
+    await buildContextPacket({ task: "update module multiply logic", updateSnapshot: false, workspaceRoot: workspace });
+    const elapsed = Date.now() - start;
+    assert.ok(elapsed < 8000, `assembly on 200 files took ${elapsed}ms (budget 8000ms) — possible algorithmic regression`);
+  } finally {
+    await fs.rm(workspace, { recursive: true, force: true });
+  }
+});

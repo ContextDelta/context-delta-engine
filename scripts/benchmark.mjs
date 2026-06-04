@@ -101,6 +101,23 @@ async function main() {
     console.log(`| Full packet assembly (scan + graph + index + rank + tokenize) | ${fmt(packet.mean)} | ${fmt(packet.p50)} | ${fmt(packet.p95)} |`);
     console.log("");
     console.log(`Packet size: ~${packetTokens} tokens. All local, deterministic, no model calls.`);
+
+    // Regression guard. Generous absolute ceilings (≈15–17x normal) so it never
+    // flakes on a loaded runner but catches a catastrophic slowdown (e.g. an
+    // accidental O(n^2)) before it reaches users. Tune with the flags.
+    if (process.argv.includes("--assert")) {
+      const maxScan = numberFlag(args, "--max-scan-ms", 4000);
+      const maxAssembly = numberFlag(args, "--max-assembly-ms", 10000);
+      const problems = [];
+      if (scan.p95 > maxScan) problems.push(`scan p95 ${scan.p95.toFixed(0)}ms > ${maxScan}ms`);
+      if (packet.p95 > maxAssembly) problems.push(`assembly p95 ${packet.p95.toFixed(0)}ms > ${maxAssembly}ms`);
+      if (problems.length) {
+        console.log(`\nPERFORMANCE REGRESSION: ${problems.join("; ")}`);
+        process.exitCode = 1;
+      } else {
+        console.log(`\nPerformance within budget (scan p95 ≤ ${maxScan}ms, assembly p95 ≤ ${maxAssembly}ms).`);
+      }
+    }
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

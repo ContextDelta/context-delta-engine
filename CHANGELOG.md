@@ -62,6 +62,10 @@ versioning once releases begin.
   `npm run pr-comment`.
 - Local performance benchmark (`npm run benchmark`): ~80 ms scan / ~570 ms full
   packet assembly on a 1,000-file repo, reproducible and model-free.
+- Performance regression guard (`npm run benchmark:assert`) and an in-suite time
+  budget, plus robustness coverage (empty workspaces, binary/oversized/
+  extensionless files, pathological minified lines, unusual ignore patterns) so
+  the engine degrades gracefully and never crashes, hangs, or silently slows.
 - VS Code extension shell with activity bar dashboard, packet view, insight
   view, diff view, manager summary view, handoff copy, and packet item actions.
 - GitHub Pages landing page, supporting static docs, and launch preview
