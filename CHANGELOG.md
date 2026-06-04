@@ -43,6 +43,10 @@ versioning once releases begin.
   no embeddings): the ranker reads file content and declared symbols (JS/TS,
   Python, Go) and weights rare task terms higher, replacing the hardcoded
   auth-domain keyword regex with relevance derived from the repo itself.
+- Loop compaction correctness: the incremental handoff key is now content-aware,
+  so a file whose content changed between turns is re-sent rather than marked
+  "retained, do not re-request" — the agent never works from stale content across
+  the loop, and a content change is treated as an update, not a removal.
 - Local feedback flywheel (`feedback.js`): drift misses (files the agent edited
   that the packet omitted) are recorded locally as `(task keywords → paths)` and
   boost those paths on a future overlapping task, so a repeated miss becomes a

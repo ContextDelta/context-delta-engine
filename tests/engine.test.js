@@ -2279,3 +2279,30 @@ test("a recorded drift miss is surfaced in a later similar packet", async () => 
     await fs.rm(workspace, { recursive: true, force: true });
   }
 });
+
+// --- Loop compaction: incremental handoff must never retain stale content (C5) ---
+
+test("incremental handoff re-sends changed content instead of retaining it", () => {
+  const mk = (path, content) => ({
+    changed_artifacts: [{ type: "file_snapshot", path, content }],
+    supporting_evidence: [],
+    governing_constraints: [],
+    impacted_neighbors: []
+  });
+  const previous = mk("src/a.ts", "version one content");
+
+  const unchanged = buildIncrementalHandoffModel(mk("src/a.ts", "version one content"), previous);
+  assert.equal(unchanged.retained.length, 1, "identical content is retained (not re-sent)");
+  assert.equal(unchanged.new_buckets.length, 0);
+
+  const changed = buildIncrementalHandoffModel(mk("src/a.ts", "version TWO different content"), previous);
+  assert.ok(
+    changed.new_buckets.some((b) => b.items.some((i) => i.path === "src/a.ts")),
+    "changed content is re-sent as new"
+  );
+  assert.equal(changed.retained.length, 0, "changed content is not falsely retained");
+  assert.equal(changed.removed.length, 0, "a content change is an update, not a removal");
+
+  const dropped = buildIncrementalHandoffModel(mk("src/b.ts", "new file"), previous);
+  assert.ok(dropped.removed.some((i) => i.path === "src/a.ts"), "a genuinely dropped file is removed");
+});
