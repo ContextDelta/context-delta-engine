@@ -2306,3 +2306,32 @@ test("incremental handoff re-sends changed content instead of retaining it", () 
   const dropped = buildIncrementalHandoffModel(mk("src/b.ts", "new file"), previous);
   assert.ok(dropped.removed.some((i) => i.path === "src/a.ts"), "a genuinely dropped file is removed");
 });
+
+// --- Context contracts: required context is verified at build time (C3) ---
+
+test("a context contract reports satisfied and missing required patterns", async () => {
+  await withWorkspace("cd-contract-", {
+    "contextdelta.config.json": JSON.stringify({ contract: { require: ["src/auth/**", "tests/**"] } }),
+    "src/auth/service.ts": "export function rotate(token) { return token; }\n",
+    "AGENTS.md": "# Agent Instructions\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "rotate the auth token service", updateSnapshot: false, workspaceRoot: ws });
+    const contract = packet.compliance.contract;
+    assert.ok(contract.satisfied.includes("src/auth/**"), "auth pattern satisfied");
+    assert.ok(contract.missing.includes("tests/**"), "tests pattern missing (no tests present)");
+    assert.ok(packet.warnings.some((w) => w.type === "contract-violation"));
+  });
+});
+
+test("a fully satisfied contract produces no violation", async () => {
+  await withWorkspace("cd-contract-ok-", {
+    "contextdelta.config.json": JSON.stringify({ contract: { require: ["src/auth/service.ts"] } }),
+    "src/auth/service.ts": "export function rotate(token) { return token; }\n",
+    "tests/auth.test.ts": "import { rotate } from '../src/auth/service';\ntest('r', () => { expect(rotate('a')).toBe('a'); });\n",
+    "AGENTS.md": "# Agent Instructions\n"
+  }, async (ws) => {
+    const { packet } = await buildContextPacket({ task: "rotate the auth token service", updateSnapshot: false, workspaceRoot: ws });
+    assert.equal(packet.compliance.contract.missing.length, 0);
+    assert.ok(!packet.warnings.some((w) => w.type === "contract-violation"));
+  });
+});

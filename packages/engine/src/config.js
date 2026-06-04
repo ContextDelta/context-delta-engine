@@ -38,6 +38,9 @@ export const DEFAULT_CONFIG = {
   feedback: {
     enabled: true
   },
+  contract: {
+    require: []
+  },
   policy: {
     maxDeliveredTokens: null,
     excludePaths: [

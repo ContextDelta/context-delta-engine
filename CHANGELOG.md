@@ -113,6 +113,10 @@ versioning once releases begin.
   redaction status, deprecated specs excluded, and an optional
   `policy.maxDeliveredTokens` hard ceiling with violation flagging — making the
   packet an audit artifact.
+- Context contracts: declare required path patterns via `contract.require`; the
+  packet's `compliance.contract` reports satisfied/missing and a missing
+  requirement raises a `contract-violation` warning — a verifiable, build-time
+  guarantee that required context is present, not a silent omission found later.
 - Packet format contract: a published JSON Schema (`docs/packet.schema.json`)
   plus a dependency-free validator (`validatePacket`, `npm run validate:packet`,
   in `release:check`) that also enforces invariants (delivered ≤ baseline,

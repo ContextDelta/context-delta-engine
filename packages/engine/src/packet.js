@@ -393,7 +393,19 @@ export async function buildContextPacket(options) {
     policyExcludedCount: policyExcluded.length,
     redactionsApplied: redacted.security?.redactions_applied ?? 0
   });
-  redacted.warnings = [...redacted.warnings, ...redacted.compliance.violations.map((message) => ({ message, type: "policy-violation" }))];
+  // Context contract: required path patterns the packet MUST satisfy. A missing
+  // requirement is a verifiable, build-time correctness failure — not a silent
+  // omission discovered later.
+  const contract = evaluateContract(getUniqueIncludedItems(redacted), config.contract?.require ?? []);
+  redacted.compliance.contract = contract;
+  redacted.warnings = [
+    ...redacted.warnings,
+    ...redacted.compliance.violations.map((message) => ({ message, type: "policy-violation" })),
+    ...contract.missing.map((pattern) => ({
+      message: `Context contract: required pattern "${pattern}" is not satisfied by any included file.`,
+      type: "contract-violation"
+    }))
+  ];
   redacted.summary = buildSummary(redacted);
   redacted.id = createPacketId(redacted);
   redacted.insights = buildPacketInsights(redacted);
@@ -620,6 +632,46 @@ function buildBudgetWarnings(packetTokensEstimate, targetTokens) {
 // Raises the budget ceiling with change volume so a large, legitimate diff is
 // not flagged as over budget. Tiers mirror common presets; the configured
 // target is treated as a floor, never lowered.
+// Evaluates a context contract: each required pattern must be satisfied by at
+// least one included item. Patterns support globs (*, **, ?); a plain path also
+// matches a directory prefix. Returns satisfied/missing for an auditable result.
+function evaluateContract(includedItems, requirePatterns) {
+  const includedPaths = includedItems.map((item) => item.path).filter(Boolean);
+  const required = [...new Set((requirePatterns ?? []).filter((pattern) => typeof pattern === "string" && pattern))];
+  const satisfied = [];
+  const missing = [];
+  for (const pattern of required) {
+    const met = includedPaths.some((candidate) => matchesRequirement(candidate, pattern));
+    (met ? satisfied : missing).push(pattern);
+  }
+  return { missing, required, satisfied };
+}
+
+function matchesRequirement(candidate, pattern) {
+  if (!/[*?]/.test(pattern)) {
+    return candidate === pattern || candidate.startsWith(`${pattern.replace(/\/+$/, "")}/`);
+  }
+  let re = "";
+  for (let i = 0; i < pattern.length; i += 1) {
+    const char = pattern[i];
+    if (char === "*") {
+      if (pattern[i + 1] === "*") {
+        re += ".*";
+        i += 1;
+      } else {
+        re += "[^/]*";
+      }
+    } else if (char === "?") {
+      re += "[^/]";
+    } else if (".+^${}()|[]\\".includes(char)) {
+      re += `\\${char}`;
+    } else {
+      re += char;
+    }
+  }
+  return new RegExp(`^${re}$`).test(candidate);
+}
+
 // Builds the governance/compliance record for the packet: what policy enforced,
 // and whether the delivered context honored any configured hard limits. Makes
 // the packet an audit artifact — the governance angle for teams and enterprises.
